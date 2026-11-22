@@ -24,6 +24,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from biomedrxiv.biorxiv_sync import sync_incremental_from_biorxiv_api
 from biomedrxiv.clinical_trials import (
     ClinicalTrialsCache,
     ClinicalTrialsLinker,
@@ -45,6 +46,15 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run end-to-end Bio&Med-Rxiv sync, ETL, clinical trial linkage, and quality gates."
     )
     parser.add_argument("--dataset", default=DEFAULT_KAGGLE_DATASET)
+    parser.add_argument(
+        "--source",
+        choices=["biorxiv-api", "kaggle", "both"],
+        default="biorxiv-api",
+        help=(
+            "Data update source (default: biorxiv-api for direct incremental updates; "
+            "use 'both' in clean CI runners to bootstrap from Kaggle then apply live API deltas)."
+        ),
+    )
     parser.add_argument("--skip-download", action="store_true", help="Reuse active data/current snapshot.")
     parser.add_argument("--skip-parquet", action="store_true", help="Reuse existing Parquet tables.")
     parser.add_argument(
@@ -85,9 +95,22 @@ def main(argv: list[str] | None = None) -> int:
             shutil.copy2(dashboard_json, baseline_copy)
 
         if not args.skip_download:
-            manager = DatasetVersionManager(paths=paths, dataset_handle=args.dataset)
-            res = manager.sync_from_kaggle(force_download=True, notes="automated pipeline run")
-            logger.info("Kaggle sync status=%s version=%s", res.status, res.version_id)
+            if args.source in {"kaggle", "both"} or not (paths.current_link / "biorxiv_medrxiv_preprints.csv").exists():
+                manager = DatasetVersionManager(paths=paths, dataset_handle=args.dataset)
+                res = manager.sync_from_kaggle(force_download=True, notes="automated pipeline Kaggle base sync")
+                logger.info("Kaggle sync status=%s version=%s", res.status, res.version_id)
+
+            if args.source in {"biorxiv-api", "both"}:
+                inc = sync_incremental_from_biorxiv_api(paths)
+                logger.info(
+                    "Direct bioRxiv/medRxiv API sync (%s..%s): fetched=%d, changes=%d, pubs=%d, version=%s",
+                    inc.start_date,
+                    inc.end_date,
+                    inc.fetched_records,
+                    inc.new_or_updated_records,
+                    inc.pubs_harvested,
+                    inc.update_result.version_id if inc.update_result else "unchanged",
+                )
 
         audit = None
         if not args.skip_parquet:

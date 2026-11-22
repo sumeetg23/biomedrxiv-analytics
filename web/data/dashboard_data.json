@@ -1,29 +1,29 @@
 {
-  "generated_at_utc": "2026-11-22T19:58:51.784805+00:00",
+  "generated_at_utc": "2026-11-22T20:46:24.368675+00:00",
   "dataset_provenance": {
     "dataset_handle": "m0delcrafter/bio-and-med-dataset",
-    "version_id": "v20261122_183540_bb4c451d",
-    "created_at_utc": "2026-11-22T18:35:40.184516+00:00",
-    "content_sha256": "bb4c451d23e5372d",
-    "total_size_gb": 2.54,
-    "versions_tracked": 1
+    "version_id": "v20261122_204306_69c9f17f",
+    "created_at_utc": "2026-11-22T20:43:06.206064+00:00",
+    "content_sha256": "69c9f17f524a2225",
+    "total_size_gb": 1.25,
+    "versions_tracked": 2
   },
   "quality_audit": {
-    "raw_row_count": 605767,
-    "unique_doi_count": 449506,
-    "duplicate_version_rows": 156261,
+    "raw_row_count": 611986,
+    "unique_doi_count": 454051,
+    "duplicate_version_rows": 157935,
     "raw_unique_categories": 115,
     "clean_unique_categories": 76,
     "raw_unique_types": 11,
     "raw_unique_licenses": 8,
-    "withdrawn_version_rows": 859,
-    "withdrawn_unique_dois": 848,
-    "raw_row_publication_rate_pct": 52.15,
-    "dedup_doi_publication_rate_pct": 49.43,
+    "withdrawn_version_rows": 877,
+    "withdrawn_unique_dois": 866,
+    "raw_row_publication_rate_pct": 51.62,
+    "dedup_doi_publication_rate_pct": 48.94,
     "versions_parquet": "data/processed/preprints_versions.parquet",
-    "versions_parquet_mb": 461.81,
+    "versions_parquet_mb": 466.78,
     "canonical_parquet": "data/processed/preprints_canonical.parquet",
-    "canonical_parquet_mb": 39.89
+    "canonical_parquet_mb": 40.29
   },
   "available_years": [
     2013,
@@ -44,49 +44,49 @@
   "mature_cohort_cutoff_year": 2024,
   "kpis": {
     "all": {
-      "unique_dois": 449506,
-      "version_rows": 605767,
-      "overall_pub_rate_pct": 49.43,
+      "unique_dois": 454051,
+      "version_rows": 611986,
+      "overall_pub_rate_pct": 48.94,
       "mature_pub_rate_pct": 58.61,
       "mature_cohort_cutoff_year": 2024,
       "median_authors": 7.0,
       "avg_versions": 1.35,
       "max_versions": 26,
-      "withdrawn_count": 848,
-      "withdrawn_per_1k": 1.89,
+      "withdrawn_count": 866,
+      "withdrawn_per_1k": 1.91,
       "unique_categories": 76,
       "date_min": "2013-11-07",
-      "date_max": "2026-10-31"
+      "date_max": "2026-11-22"
     },
     "biorxiv": {
-      "unique_dois": 358194,
-      "version_rows": 492516,
-      "overall_pub_rate_pct": 50.69,
+      "unique_dois": 361723,
+      "version_rows": 497431,
+      "overall_pub_rate_pct": 50.2,
       "mature_pub_rate_pct": 59.37,
       "mature_cohort_cutoff_year": 2024,
       "median_authors": 6.0,
       "avg_versions": 1.38,
       "max_versions": 25,
-      "withdrawn_count": 599,
-      "withdrawn_per_1k": 1.67,
+      "withdrawn_count": 613,
+      "withdrawn_per_1k": 1.69,
       "unique_categories": 27,
       "date_min": "2013-11-07",
-      "date_max": "2026-10-31"
+      "date_max": "2026-11-22"
     },
     "medrxiv": {
-      "unique_dois": 91312,
-      "version_rows": 113251,
-      "overall_pub_rate_pct": 44.5,
+      "unique_dois": 92328,
+      "version_rows": 114555,
+      "overall_pub_rate_pct": 44.01,
       "mature_pub_rate_pct": 55.4,
       "mature_cohort_cutoff_year": 2024,
       "median_authors": 8.0,
       "avg_versions": 1.24,
       "max_versions": 26,
-      "withdrawn_count": 249,
-      "withdrawn_per_1k": 2.73,
+      "withdrawn_count": 253,
+      "withdrawn_per_1k": 2.74,
       "unique_categories": 51,
       "date_min": "2019-06-25",
-      "date_max": "2026-10-31"
+      "date_max": "2026-11-20"
     }
   },
   "by_year": {
@@ -1433,18 +1433,18 @@
       "biorxiv": {
         "kpi": {
           "unique_dois": 4718,
-          "version_rows": 7394,
+          "version_rows": 7395,
           "published_count": 3352,
           "withdrawn_count": 1,
-          "version_sum": 7394,
+          "version_sum": 7395,
           "max_versions": 19,
           "date_min": "2016-01-01",
           "date_max": "2016-12-31",
           "author_hist": {
             "1": 253,
             "2": 677,
-            "3": 771,
-            "4": 667,
+            "3": 770,
+            "4": 668,
             "5": 510,
             "6": 444,
             "7": 307,
@@ -1496,8 +1496,8 @@
           "Bioinformatics": [
             704,
             449,
-            1088,
-            3670
+            1089,
+            3671
           ],
           "Biophysics": [
             182,
@@ -1688,11 +1688,11 @@
             2007
           ],
           "2": [
-            1146,
+            1145,
             883
           ],
           "3": [
-            400,
+            401,
             317
           ],
           "4": [
@@ -1718,11 +1718,11 @@
             108
           ],
           "2\u20133": [
-            1448,
+            1447,
             956
           ],
           "4\u20136": [
-            1621,
+            1622,
             1213
           ],
           "7\u201310": [
@@ -1958,7 +1958,7 @@
           "University of Toronto": [
             16,
             9,
-            77
+            78
           ],
           "University of Utah": [
             13,
@@ -2573,10 +2573,10 @@
       "biorxiv": {
         "kpi": {
           "unique_dois": 20778,
-          "version_rows": 30146,
+          "version_rows": 30147,
           "published_count": 14772,
           "withdrawn_count": 33,
-          "version_sum": 30147,
+          "version_sum": 30148,
           "max_versions": 25,
           "date_min": "2018-01-01",
           "date_max": "2018-12-31",
@@ -2690,7 +2690,7 @@
           "Genetics": [
             1055,
             783,
-            1511,
+            1512,
             11001
           ],
           "Genomics": [
@@ -5593,10 +5593,10 @@
       "biorxiv": {
         "kpi": {
           "unique_dois": 36866,
-          "version_rows": 51118,
+          "version_rows": 51125,
           "published_count": 23141,
           "withdrawn_count": 43,
-          "version_sum": 51118,
+          "version_sum": 51125,
           "max_versions": 12,
           "date_min": "2021-01-01",
           "date_max": "2021-12-31",
@@ -5606,18 +5606,18 @@
             "3": 3884,
             "4": 4309,
             "5": 4099,
-            "6": 3611,
-            "7": 3139,
+            "6": 3610,
+            "7": 3138,
             "8": 2549,
-            "9": 2115,
+            "9": 2116,
             "10": 1753,
-            "11": 1428,
+            "11": 1429,
             "12": 1096,
             "13": 903,
             "14": 744,
             "15": 615,
-            "16": 501,
-            "17": 404,
+            "16": 500,
+            "17": 405,
             "18": 340,
             "19": 276,
             "20": 235,
@@ -5650,13 +5650,13 @@
           "Bioengineering": [
             1143,
             700,
-            1527,
+            1528,
             8316
           ],
           "Bioinformatics": [
             2920,
             1711,
-            4217,
+            4218,
             16962
           ],
           "Biophysics": [
@@ -5698,7 +5698,7 @@
           "Evolutionary Biology": [
             1679,
             1121,
-            2653,
+            2654,
             9778
           ],
           "Genetics": [
@@ -5710,8 +5710,8 @@
           "Genomics": [
             1681,
             1116,
-            2361,
-            15858
+            2362,
+            15859
           ],
           "Immunology": [
             1892,
@@ -5728,8 +5728,8 @@
           "Molecular Biology": [
             1485,
             915,
-            1937,
-            12275
+            1940,
+            12282
           ],
           "Neuroscience": [
             6412,
@@ -5838,7 +5838,7 @@
         },
         "revisions": {
           "1": [
-            26934,
+            26931,
             16374
           ],
           "2": [
@@ -5846,15 +5846,15 @@
             4746
           ],
           "3": [
-            2034,
+            2037,
             1405
           ],
           "4": [
-            599,
+            598,
             411
           ],
           "5+": [
-            295,
+            296,
             205
           ]
         },
@@ -5864,7 +5864,7 @@
             266
           ],
           "11\u201320": [
-            6542,
+            6543,
             4010
           ],
           "21+": [
@@ -5876,7 +5876,7 @@
             4202
           ],
           "4\u20136": [
-            12019,
+            12018,
             7739
           ],
           "7\u201310": [
@@ -6154,10 +6154,10 @@
       "medrxiv": {
         "kpi": {
           "unique_dois": 12746,
-          "version_rows": 16163,
+          "version_rows": 16164,
           "published_count": 9045,
           "withdrawn_count": 20,
-          "version_sum": 16171,
+          "version_sum": 16172,
           "max_versions": 9,
           "date_min": "2021-01-01",
           "date_max": "2021-12-31",
@@ -6169,9 +6169,9 @@
             "5": 1085,
             "6": 1025,
             "7": 982,
-            "8": 825,
+            "8": 824,
             "9": 828,
-            "10": 740,
+            "10": 741,
             "11": 515,
             "12": 484,
             "13": 433,
@@ -6313,8 +6313,8 @@
           "Infectious Diseases": [
             3111,
             2277,
-            3962,
-            41315
+            3963,
+            41317
           ],
           "Intensive Care And Critical Care Medicine": [
             155,
@@ -6552,11 +6552,11 @@
             7156
           ],
           "2": [
-            1902,
+            1901,
             1422
           ],
           "3": [
-            455,
+            456,
             343
           ],
           "4": [
@@ -6654,7 +6654,7 @@
           "Imperial College London": [
             107,
             84,
-            1097
+            1099
           ],
           "Johns Hopkins University": [
             26,
@@ -6853,10 +6853,10 @@
       "biorxiv": {
         "kpi": {
           "unique_dois": 35750,
-          "version_rows": 49274,
+          "version_rows": 49282,
           "published_count": 19107,
-          "withdrawn_count": 49,
-          "version_sum": 49275,
+          "withdrawn_count": 50,
+          "version_sum": 49283,
           "max_versions": 11,
           "date_min": "2022-01-01",
           "date_max": "2022-12-31",
@@ -6865,13 +6865,13 @@
             "2": 2625,
             "3": 3721,
             "4": 4161,
-            "5": 3879,
-            "6": 3473,
+            "5": 3878,
+            "6": 3472,
             "7": 2984,
             "8": 2571,
-            "9": 2132,
+            "9": 2133,
             "10": 1747,
-            "11": 1429,
+            "11": 1430,
             "12": 1128,
             "13": 904,
             "14": 730,
@@ -6916,8 +6916,8 @@
           "Bioinformatics": [
             3001,
             1577,
-            4408,
-            17516
+            4410,
+            17522
           ],
           "Biophysics": [
             1801,
@@ -6928,7 +6928,7 @@
           "Cancer Biology": [
             1494,
             733,
-            2053,
+            2054,
             18209
           ],
           "Cell Biology": [
@@ -6946,13 +6946,13 @@
           "Ecology": [
             1478,
             751,
-            2127,
+            2130,
             9264
           ],
           "Evolutionary Biology": [
             1613,
             944,
-            2531,
+            2532,
             9642
           ],
           "Genetics": [
@@ -6988,8 +6988,8 @@
           "Neuroscience": [
             6304,
             3599,
-            9367,
-            45062
+            9368,
+            45065
           ],
           "Paleontology": [
             60,
@@ -7092,7 +7092,7 @@
         },
         "revisions": {
           "1": [
-            26400,
+            26397,
             13486
           ],
           "2": [
@@ -7100,7 +7100,7 @@
             3814
           ],
           "3": [
-            1985,
+            1987,
             1238
           ],
           "4": [
@@ -7108,7 +7108,7 @@
             367
           ],
           "5+": [
-            295,
+            296,
             202
           ]
         },
@@ -7118,7 +7118,7 @@
             233
           ],
           "11\u201320": [
-            6534,
+            6535,
             3396
           ],
           "21+": [
@@ -7130,11 +7130,11 @@
             3355
           ],
           "4\u20136": [
-            11513,
+            11511,
             6382
           ],
           "7\u201310": [
-            9434,
+            9435,
             5067
           ]
         },
@@ -7148,7 +7148,7 @@
             39
           ],
           "New Results": [
-            35217,
+            35216,
             18910
           ]
         },
@@ -8106,20 +8106,20 @@
       "biorxiv": {
         "kpi": {
           "unique_dois": 39153,
-          "version_rows": 55797,
+          "version_rows": 55821,
           "published_count": 18905,
-          "withdrawn_count": 88,
-          "version_sum": 55798,
+          "withdrawn_count": 89,
+          "version_sum": 55822,
           "max_versions": 16,
           "date_min": "2023-01-02",
           "date_max": "2023-12-30",
           "author_hist": {
-            "1": 643,
+            "1": 642,
             "2": 2766,
             "3": 3795,
             "4": 4332,
-            "5": 4175,
-            "6": 3854,
+            "5": 4176,
+            "6": 3852,
             "7": 3341,
             "8": 2761,
             "9": 2480,
@@ -8134,12 +8134,12 @@
             "18": 377,
             "19": 300,
             "20": 254,
-            "21": 182,
+            "21": 181,
             "22": 171,
-            "23": 140,
+            "23": 141,
             "24": 134,
             "25": 102,
-            "26": 105,
+            "26": 107,
             "27": 72,
             "28": 51,
             "29": 47,
@@ -8169,26 +8169,26 @@
           "Bioinformatics": [
             3240,
             1686,
-            4803,
-            19580
+            4808,
+            19591
           ],
           "Biophysics": [
             1877,
             1065,
-            2705,
-            11223
+            2707,
+            11243
           ],
           "Cancer Biology": [
             1789,
             785,
-            2402,
-            22114
+            2403,
+            22119
           ],
           "Cell Biology": [
             2456,
             1163,
-            3426,
-            21653
+            3428,
+            21657
           ],
           "Developmental Biology": [
             1172,
@@ -8197,16 +8197,16 @@
             8867
           ],
           "Ecology": [
-            1577,
+            1578,
             803,
-            2256,
-            10472
+            2261,
+            10476
           ],
           "Evolutionary Biology": [
-            1669,
+            1668,
             836,
             2676,
-            10220
+            10216
           ],
           "Genetics": [
             1075,
@@ -8217,14 +8217,14 @@
           "Genomics": [
             1595,
             765,
-            2307,
+            2308,
             15404
           ],
           "Immunology": [
             1701,
             737,
-            2275,
-            19840
+            2278,
+            19843
           ],
           "Microbiology": [
             3675,
@@ -8241,8 +8241,8 @@
           "Neuroscience": [
             7169,
             3894,
-            11251,
-            53939
+            11256,
+            53940
           ],
           "Paleontology": [
             54,
@@ -8343,29 +8343,29 @@
         },
         "revisions": {
           "1": [
-            27903,
-            12361
+            27894,
+            12360
           ],
           "2": [
-            7651,
-            4214
+            7654,
+            4215
           ],
           "3": [
-            2419,
+            2421,
             1534
           ],
           "4": [
-            799,
+            802,
             530
           ],
           "5+": [
-            381,
+            382,
             266
           ]
         },
         "team_buckets": {
           "1 (Solo)": [
-            643,
+            642,
             220
           ],
           "11\u201320": [
@@ -8373,7 +8373,7 @@
             3540
           ],
           "21+": [
-            1433,
+            1435,
             668
           ],
           "2\u20133": [
@@ -8381,7 +8381,7 @@
             3195
           ],
           "4\u20136": [
-            12361,
+            12360,
             6117
           ],
           "7\u201310": [
@@ -8399,7 +8399,7 @@
             41
           ],
           "New Results": [
-            38486,
+            38485,
             18672
           ]
         },
@@ -8602,12 +8602,12 @@
           "University of Pennsylvania": [
             177,
             89,
-            1574
+            1578
           ],
           "University of Pittsburgh": [
             160,
             78,
-            1237
+            1242
           ],
           "University of Southern California": [
             105,
@@ -8647,7 +8647,7 @@
           "Vanderbilt University": [
             97,
             51,
-            898
+            899
           ],
           "Yale University": [
             163,
@@ -9355,53 +9355,53 @@
       "biorxiv": {
         "kpi": {
           "unique_dois": 43630,
-          "version_rows": 60887,
+          "version_rows": 60940,
           "published_count": 20235,
-          "withdrawn_count": 83,
-          "version_sum": 60887,
+          "withdrawn_count": 84,
+          "version_sum": 60940,
           "max_versions": 14,
           "date_min": "2024-01-01",
           "date_max": "2024-12-31",
           "author_hist": {
             "1": 675,
-            "2": 2864,
+            "2": 2863,
             "3": 4140,
-            "4": 4648,
-            "5": 4606,
-            "6": 4285,
-            "7": 3781,
-            "8": 3236,
-            "9": 2734,
-            "10": 2230,
-            "11": 1840,
-            "12": 1474,
-            "13": 1225,
-            "14": 962,
+            "4": 4647,
+            "5": 4607,
+            "6": 4282,
+            "7": 3779,
+            "8": 3239,
+            "9": 2733,
+            "10": 2229,
+            "11": 1838,
+            "12": 1473,
+            "13": 1226,
+            "14": 964,
             "15": 817,
-            "16": 700,
-            "17": 544,
-            "18": 456,
+            "16": 703,
+            "17": 543,
+            "18": 458,
             "19": 418,
             "20": 296,
             "21": 219,
-            "22": 190,
-            "23": 181,
-            "24": 161,
+            "22": 189,
+            "23": 182,
+            "24": 162,
             "25": 133,
             "26": 116,
             "27": 87,
-            "28": 71,
+            "28": 70,
             "29": 60,
-            "30": 56,
+            "30": 57,
             "31": 425
           }
         },
         "categories": {
           "Animal Behavior And Cognition": [
-            733,
+            732,
             348,
-            1101,
-            3989
+            1100,
+            3982
           ],
           "Biochemistry": [
             2003,
@@ -9412,32 +9412,32 @@
           "Bioengineering": [
             1700,
             838,
-            2181,
+            2182,
             13569
           ],
           "Bioinformatics": [
             3619,
             1682,
-            5316,
-            23011
+            5322,
+            23025
           ],
           "Biophysics": [
             2000,
             1143,
-            2800,
-            12074
+            2801,
+            12076
           ],
           "Cancer Biology": [
             2101,
             885,
-            2799,
-            26190
+            2800,
+            26195
           ],
           "Cell Biology": [
             2629,
             1259,
-            3668,
-            23638
+            3674,
+            23646
           ],
           "Developmental Biology": [
             1305,
@@ -9448,8 +9448,8 @@
           "Ecology": [
             1771,
             837,
-            2453,
-            11758
+            2455,
+            11759
           ],
           "Evolutionary Biology": [
             1730,
@@ -9460,38 +9460,38 @@
           "Genetics": [
             1107,
             493,
-            1523,
-            9686
+            1524,
+            9689
           ],
           "Genomics": [
             1777,
             772,
-            2457,
-            17582
+            2460,
+            17585
           ],
           "Immunology": [
             1935,
             788,
-            2455,
+            2458,
             22501
           ],
           "Microbiology": [
             4186,
             1620,
-            5555,
-            34586
+            5558,
+            34591
           ],
           "Molecular Biology": [
             1880,
             852,
-            2458,
-            16224
+            2459,
+            16225
           ],
           "Neuroscience": [
-            8011,
+            8012,
             4091,
-            12302,
-            61314
+            12323,
+            61346
           ],
           "Paleontology": [
             61,
@@ -9502,8 +9502,8 @@
           "Pathology": [
             322,
             130,
-            421,
-            3220
+            422,
+            3221
           ],
           "Pharmacology And Toxicology": [
             549,
@@ -9514,14 +9514,14 @@
           "Physiology": [
             925,
             390,
-            1195,
+            1196,
             8243
           ],
           "Plant Biology": [
             1684,
             592,
-            2155,
-            13370
+            2156,
+            13376
           ],
           "Scientific Communication And Education": [
             127,
@@ -9532,13 +9532,13 @@
           "Synthetic Biology": [
             483,
             223,
-            631,
-            3614
+            632,
+            3616
           ],
           "Systems Biology": [
             752,
             368,
-            1028,
+            1029,
             5481
           ],
           "Zoology": [
@@ -9592,23 +9592,23 @@
         },
         "revisions": {
           "1": [
-            31711,
+            31688,
             13677
           ],
           "2": [
-            8320,
+            8326,
             4422
           ],
           "3": [
-            2476,
+            2487,
             1442
           ],
           "4": [
-            753,
+            756,
             482
           ],
           "5+": [
-            370,
+            373,
             212
           ]
         },
@@ -9618,23 +9618,23 @@
             210
           ],
           "11\u201320": [
-            8732,
+            8736,
             3916
           ],
           "21+": [
-            1699,
+            1700,
             728
           ],
           "2\u20133": [
-            7004,
+            7003,
             3280
           ],
           "4\u20136": [
-            13539,
+            13536,
             6469
           ],
           "7\u201310": [
-            11981,
+            11980,
             5632
           ]
         },
@@ -9648,7 +9648,7 @@
             53
           ],
           "New Results": [
-            42918,
+            42917,
             19980
           ]
         },
@@ -9676,7 +9676,7 @@
           "Duke University": [
             134,
             76,
-            1096
+            1097
           ],
           "ETH Zurich": [
             86,
@@ -9696,7 +9696,7 @@
           "Harvard Medical School": [
             103,
             49,
-            878
+            883
           ],
           "Harvard University": [
             111,
@@ -9756,7 +9756,7 @@
           "Princeton University": [
             101,
             49,
-            593
+            597
           ],
           "Stanford University": [
             333,
@@ -9806,7 +9806,7 @@
           "University of Cambridge": [
             256,
             122,
-            2032
+            2036
           ],
           "University of Chicago": [
             113,
@@ -9836,7 +9836,7 @@
           "University of Minnesota": [
             160,
             82,
-            1182
+            1185
           ],
           "University of North Carolina at Chapel Hill": [
             88,
@@ -9881,7 +9881,7 @@
           "University of Washington": [
             250,
             126,
-            2202
+            2208
           ],
           "University of Wisconsin-Madison": [
             149,
@@ -9908,10 +9908,10 @@
       "medrxiv": {
         "kpi": {
           "unique_dois": 12864,
-          "version_rows": 15798,
+          "version_rows": 15801,
           "published_count": 5251,
           "withdrawn_count": 43,
-          "version_sum": 15799,
+          "version_sum": 15802,
           "max_versions": 11,
           "date_min": "2024-01-01",
           "date_max": "2024-12-31",
@@ -9930,11 +9930,11 @@
             "12": 503,
             "13": 417,
             "14": 379,
-            "15": 345,
+            "15": 344,
             "16": 295,
             "17": 227,
             "18": 216,
-            "19": 153,
+            "19": 154,
             "20": 148,
             "21": 133,
             "22": 103,
@@ -10001,7 +10001,7 @@
           "Epidemiology": [
             1240,
             561,
-            1551,
+            1552,
             11228
           ],
           "Forensic Medicine": [
@@ -10017,10 +10017,10 @@
             1824
           ],
           "Genetic And Genomic Medicine": [
-            1016,
+            1015,
             468,
-            1361,
-            14591
+            1360,
+            14576
           ],
           "Geriatric Medicine": [
             95,
@@ -10209,10 +10209,10 @@
             1502
           ],
           "Respiratory Medicine": [
-            122,
+            123,
             42,
-            140,
-            1410
+            142,
+            1429
           ],
           "Rheumatology": [
             81,
@@ -10229,7 +10229,7 @@
           "Sports Medicine": [
             74,
             37,
-            94,
+            95,
             516
           ],
           "Surgery": [
@@ -10299,7 +10299,7 @@
         },
         "revisions": {
           "1": [
-            10679,
+            10678,
             4202
           ],
           "2": [
@@ -10307,15 +10307,15 @@
             783
           ],
           "3": [
-            372,
+            373,
             201
           ],
           "4": [
-            83,
+            82,
             42
           ],
           "5+": [
-            54,
+            55,
             23
           ]
         },
@@ -10415,7 +10415,7 @@
           "Karolinska Institutet": [
             35,
             16,
-            373
+            377
           ],
           "King's College London": [
             48,
@@ -10604,143 +10604,143 @@
       "biorxiv": {
         "kpi": {
           "unique_dois": 49324,
-          "version_rows": 65637,
+          "version_rows": 65857,
           "published_count": 20606,
-          "withdrawn_count": 88,
-          "version_sum": 65643,
+          "withdrawn_count": 89,
+          "version_sum": 65863,
           "max_versions": 12,
           "date_min": "2025-01-01",
           "date_max": "2025-12-31",
           "author_hist": {
             "1": 809,
-            "2": 3238,
-            "3": 4581,
-            "4": 5220,
-            "5": 5178,
-            "6": 4881,
-            "7": 4092,
-            "8": 3645,
-            "9": 3071,
-            "10": 2491,
+            "2": 3237,
+            "3": 4576,
+            "4": 5212,
+            "5": 5184,
+            "6": 4876,
+            "7": 4097,
+            "8": 3647,
+            "9": 3067,
+            "10": 2492,
             "11": 2086,
-            "12": 1709,
+            "12": 1707,
             "13": 1394,
             "14": 1185,
-            "15": 928,
-            "16": 780,
+            "15": 927,
+            "16": 783,
             "17": 651,
-            "18": 523,
-            "19": 436,
-            "20": 350,
-            "21": 289,
-            "22": 250,
-            "23": 195,
+            "18": 519,
+            "19": 440,
+            "20": 353,
+            "21": 290,
+            "22": 248,
+            "23": 198,
             "24": 172,
             "25": 163,
-            "26": 130,
+            "26": 132,
             "27": 124,
-            "28": 102,
-            "29": 84,
-            "30": 62,
-            "31": 505
+            "28": 101,
+            "29": 85,
+            "30": 61,
+            "31": 508
           }
         },
         "categories": {
           "Animal Behavior And Cognition": [
             759,
             324,
-            1094,
-            4086
+            1096,
+            4084
           ],
           "Biochemistry": [
             2266,
             1115,
-            2857,
-            18781
+            2859,
+            18782
           ],
           "Bioengineering": [
             1968,
             870,
-            2414,
-            16191
+            2425,
+            16235
           ],
           "Bioinformatics": [
             4242,
             1627,
-            6026,
-            25699
+            6044,
+            25713
           ],
           "Biophysics": [
             2281,
             1172,
-            3106,
-            13842
+            3113,
+            13849
           ],
           "Cancer Biology": [
             2488,
             812,
-            3141,
-            31705
+            3153,
+            31718
           ],
           "Cell Biology": [
             2923,
             1163,
-            3736,
-            26620
+            3755,
+            26643
           ],
           "Developmental Biology": [
             1355,
             553,
-            1832,
-            10594
+            1840,
+            10608
           ],
           "Ecology": [
             2103,
             886,
-            2750,
-            14570
+            2763,
+            14576
           ],
           "Evolutionary Biology": [
             1887,
             873,
-            2778,
-            11959
+            2794,
+            11962
           ],
           "Genetics": [
             1191,
             533,
-            1551,
-            10103
+            1557,
+            10112
           ],
           "Genomics": [
             2033,
             859,
-            2757,
-            20069
+            2766,
+            20070
           ],
           "Immunology": [
             2279,
             856,
-            2822,
-            27301
+            2826,
+            27328
           ],
           "Microbiology": [
             4644,
             2139,
-            5823,
-            38636
+            5837,
+            38646
           ],
           "Molecular Biology": [
             2119,
             841,
-            2712,
-            18728
+            2721,
+            18743
           ],
           "Neuroscience": [
             9078,
             3625,
-            13002,
-            70678
+            13055,
+            70699
           ],
           "Paleontology": [
             74,
@@ -10751,44 +10751,44 @@
           "Pathology": [
             383,
             142,
-            483,
+            484,
             3906
           ],
           "Pharmacology And Toxicology": [
             626,
             277,
-            766,
-            5217
+            768,
+            5218
           ],
           "Physiology": [
             1031,
             398,
-            1314,
-            9319
+            1318,
+            9333
           ],
           "Plant Biology": [
             1787,
             744,
-            2231,
-            13978
+            2234,
+            13979
           ],
           "Scientific Communication And Education": [
             126,
             39,
-            167,
+            168,
             854
           ],
           "Synthetic Biology": [
             528,
             226,
-            676,
+            677,
             3862
           ],
           "Systems Biology": [
             886,
             375,
-            1187,
-            6315
+            1192,
+            6318
           ],
           "Zoology": [
             267,
@@ -10840,23 +10840,23 @@
         },
         "revisions": {
           "1": [
-            37311,
+            37210,
             15366
           ],
           "2": [
-            8940,
+            8973,
             3921
           ],
           "3": [
-            2246,
+            2283,
             979
           ],
           "4": [
-            582,
+            603,
             240
           ],
           "5+": [
-            245,
+            255,
             100
           ]
         },
@@ -10866,23 +10866,23 @@
             206
           ],
           "11\u201320": [
-            10042,
+            10045,
             3861
           ],
           "21+": [
-            2076,
+            2082,
             654
           ],
           "2\u20133": [
-            7819,
+            7813,
             3383
           ],
           "4\u20136": [
-            15279,
+            15272,
             6752
           ],
           "7\u201310": [
-            13299,
+            13303,
             5750
           ]
         },
@@ -10896,7 +10896,7 @@
             32
           ],
           "New Results": [
-            48592,
+            48591,
             20367
           ]
         },
@@ -10929,7 +10929,7 @@
           "ETH Zurich": [
             123,
             56,
-            861
+            869
           ],
           "Emory University": [
             76,
@@ -10944,7 +10944,7 @@
           "Harvard Medical School": [
             126,
             58,
-            935
+            943
           ],
           "Harvard University": [
             127,
@@ -10964,12 +10964,12 @@
           "Johns Hopkins University": [
             201,
             84,
-            1572
+            1571
           ],
           "Karolinska Institutet": [
             76,
             28,
-            730
+            732
           ],
           "King's College London": [
             90,
@@ -10979,12 +10979,12 @@
           "Massachusetts Institute of Technology": [
             147,
             67,
-            1222
+            1226
           ],
           "McGill University": [
             149,
             60,
-            1012
+            1013
           ],
           "Michigan State University": [
             114,
@@ -11009,12 +11009,12 @@
           "Stanford University": [
             390,
             155,
-            3481
+            3482
           ],
           "University College London": [
             162,
             54,
-            1230
+            1231
           ],
           "University of Bristol": [
             70,
@@ -11099,7 +11099,7 @@
           "University of Pennsylvania": [
             255,
             112,
-            2463
+            2471
           ],
           "University of Pittsburgh": [
             181,
@@ -11114,12 +11114,12 @@
           "University of Toronto": [
             160,
             67,
-            1084
+            1094
           ],
           "University of Utah": [
             85,
             40,
-            613
+            617
           ],
           "University of Virginia": [
             136,
@@ -11134,7 +11134,7 @@
           "University of Wisconsin-Madison": [
             149,
             84,
-            1033
+            1034
           ],
           "University of Zurich": [
             88,
@@ -11149,37 +11149,37 @@
           "Yale University": [
             185,
             69,
-            1592
+            1593
           ]
         }
       },
       "medrxiv": {
         "kpi": {
           "unique_dois": 14998,
-          "version_rows": 18191,
+          "version_rows": 18220,
           "published_count": 4993,
-          "withdrawn_count": 38,
-          "version_sum": 18191,
+          "withdrawn_count": 39,
+          "version_sum": 18219,
           "max_versions": 10,
           "date_min": "2025-01-01",
           "date_max": "2025-12-31",
           "author_hist": {
             "1": 387,
             "2": 646,
-            "3": 998,
+            "3": 996,
             "4": 1231,
-            "5": 1346,
+            "5": 1348,
             "6": 1355,
-            "7": 1184,
+            "7": 1182,
             "8": 1065,
             "9": 976,
-            "10": 851,
+            "10": 852,
             "11": 696,
             "12": 667,
             "13": 519,
             "14": 394,
             "15": 377,
-            "16": 319,
+            "16": 318,
             "17": 232,
             "18": 190,
             "19": 183,
@@ -11194,7 +11194,7 @@
             "28": 61,
             "29": 38,
             "30": 42,
-            "31": 413
+            "31": 415
           }
         },
         "categories": {
@@ -11213,13 +11213,13 @@
           "Anesthesia": [
             61,
             20,
-            75,
+            76,
             484
           ],
           "Cardiovascular Medicine": [
             883,
             239,
-            1031,
+            1033,
             8932
           ],
           "Dentistry And Oral Medicine": [
@@ -11237,7 +11237,7 @@
           "Emergency Medicine": [
             99,
             31,
-            112,
+            113,
             769
           ],
           "Endocrinology": [
@@ -11249,8 +11249,8 @@
           "Epidemiology": [
             1377,
             511,
-            1698,
-            11894
+            1700,
+            11898
           ],
           "Forensic Medicine": [
             12,
@@ -11267,8 +11267,8 @@
           "Genetic And Genomic Medicine": [
             1092,
             371,
-            1413,
-            14913
+            1418,
+            14939
           ],
           "Geriatric Medicine": [
             160,
@@ -11279,14 +11279,14 @@
           "Health Economics": [
             156,
             47,
-            182,
+            183,
             1116
           ],
           "Health Informatics": [
             797,
             215,
-            1039,
-            5821
+            1042,
+            5823
           ],
           "Health Policy": [
             173,
@@ -11297,8 +11297,8 @@
           "Health Systems And Quality Improvement": [
             301,
             86,
-            346,
-            2521
+            347,
+            2520
           ],
           "Hematology": [
             103,
@@ -11315,7 +11315,7 @@
           "Infectious Diseases": [
             1068,
             422,
-            1289,
+            1290,
             12651
           ],
           "Intensive Care And Critical Care Medicine": [
@@ -11345,7 +11345,7 @@
           "Neurology": [
             1264,
             469,
-            1569,
+            1572,
             14896
           ],
           "Nursing": [
@@ -11375,13 +11375,13 @@
           "Oncology": [
             595,
             176,
-            726,
-            7181
+            727,
+            7180
           ],
           "Ophthalmology": [
             187,
             56,
-            224,
+            225,
             1490
           ],
           "Orthopedics": [
@@ -11435,14 +11435,14 @@
           "Psychiatry And Clinical Psychology": [
             953,
             386,
-            1172,
-            9299
+            1175,
+            9311
           ],
           "Public And Global Health": [
             1404,
             457,
-            1625,
-            11853
+            1628,
+            11871
           ],
           "Radiology And Imaging": [
             382,
@@ -11547,23 +11547,23 @@
         },
         "revisions": {
           "1": [
-            12619,
+            12601,
             4116
           ],
           "2": [
-            1810,
+            1825,
             654
           ],
           "3": [
-            398,
+            397,
             157
           ],
           "4": [
-            128,
+            129,
             51
           ],
           "5+": [
-            43,
+            46,
             15
           ]
         },
@@ -11573,23 +11573,23 @@
             57
           ],
           "11\u201320": [
-            3746,
+            3745,
             1389
           ],
           "21+": [
-            1213,
+            1215,
             442
           ],
           "2\u20133": [
-            1644,
+            1642,
             429
           ],
           "4\u20136": [
-            3932,
+            3934,
             1225
           ],
           "7\u201310": [
-            4076,
+            4075,
             1451
           ]
         },
@@ -11638,7 +11638,7 @@
           "Harvard Medical School": [
             32,
             8,
-            289
+            293
           ],
           "Harvard University": [
             16,
@@ -11703,7 +11703,7 @@
           "Stanford University": [
             104,
             37,
-            1019
+            1037
           ],
           "University College London": [
             103,
@@ -11823,7 +11823,7 @@
           "University of Washington": [
             44,
             17,
-            502
+            501
           ],
           "University of Wisconsin-Madison": [
             26,
@@ -11851,198 +11851,198 @@
     "2026": {
       "biorxiv": {
         "kpi": {
-          "unique_dois": 45971,
-          "version_rows": 54492,
+          "unique_dois": 49500,
+          "version_rows": 59093,
           "published_count": 4888,
-          "withdrawn_count": 56,
-          "version_sum": 54493,
+          "withdrawn_count": 66,
+          "version_sum": 59094,
           "max_versions": 12,
           "date_min": "2026-01-01",
-          "date_max": "2026-10-31",
+          "date_max": "2026-11-22",
           "author_hist": {
-            "1": 909,
-            "2": 3431,
-            "3": 4537,
-            "4": 4854,
-            "5": 4788,
-            "6": 4316,
-            "7": 3763,
-            "8": 3192,
-            "9": 2738,
-            "10": 2334,
-            "11": 1954,
-            "12": 1576,
-            "13": 1295,
-            "14": 1092,
-            "15": 829,
-            "16": 706,
-            "17": 592,
-            "18": 471,
-            "19": 371,
-            "20": 352,
-            "21": 239,
-            "22": 255,
-            "23": 186,
-            "24": 178,
-            "25": 137,
-            "26": 113,
-            "27": 87,
-            "28": 84,
-            "29": 63,
-            "30": 59,
-            "31": 470
+            "1": 944,
+            "2": 3705,
+            "3": 4887,
+            "4": 5251,
+            "5": 5152,
+            "6": 4681,
+            "7": 4039,
+            "8": 3415,
+            "9": 2934,
+            "10": 2515,
+            "11": 2088,
+            "12": 1706,
+            "13": 1404,
+            "14": 1174,
+            "15": 892,
+            "16": 766,
+            "17": 631,
+            "18": 517,
+            "19": 404,
+            "20": 374,
+            "21": 264,
+            "22": 282,
+            "23": 195,
+            "24": 191,
+            "25": 150,
+            "26": 123,
+            "27": 96,
+            "28": 86,
+            "29": 68,
+            "30": 60,
+            "31": 506
           }
         },
         "categories": {
           "Animal Behavior And Cognition": [
-            727,
+            773,
             91,
-            886,
-            3968
+            952,
+            4233
           ],
           "Biochemistry": [
-            2056,
+            2192,
             309,
-            2417,
-            16729
+            2590,
+            17865
           ],
           "Bioengineering": [
-            2027,
+            2161,
             280,
-            2328,
-            16556
+            2493,
+            17685
           ],
           "Bioinformatics": [
-            4596,
+            5058,
             362,
-            5686,
-            27140
+            6294,
+            29653
           ],
           "Biophysics": [
-            2167,
+            2303,
             349,
-            2567,
-            13189
+            2767,
+            13951
           ],
           "Cancer Biology": [
-            2217,
+            2371,
             143,
-            2585,
-            28137
+            2774,
+            29993
           ],
           "Cell Biology": [
-            2701,
+            2898,
             263,
-            3129,
-            24713
+            3372,
+            26487
           ],
           "Developmental Biology": [
-            1072,
+            1151,
             103,
-            1276,
-            8602
+            1384,
+            9279
           ],
           "Ecology": [
-            2035,
+            2149,
             191,
-            2386,
-            13347
+            2556,
+            14211
           ],
           "Evolutionary Biology": [
-            1815,
+            1930,
             182,
-            2249,
-            11505
+            2424,
+            12258
           ],
           "Genetics": [
-            1050,
+            1146,
             117,
-            1251,
-            9500
+            1363,
+            10334
           ],
           "Genomics": [
-            1851,
+            2023,
             186,
-            2210,
-            17454
+            2422,
+            18992
           ],
           "Immunology": [
-            2011,
+            2181,
             191,
-            2324,
-            24390
+            2522,
+            26419
           ],
           "Microbiology": [
-            4335,
+            4653,
             609,
-            4985,
-            35478
+            5393,
+            38026
           ],
           "Molecular Biology": [
-            1800,
+            1946,
             211,
-            2106,
-            15945
+            2286,
+            17331
           ],
           "Neuroscience": [
-            8365,
+            9029,
             735,
-            10176,
-            63139
+            11079,
+            68358
           ],
           "Paleontology": [
-            60,
+            62,
             7,
-            71,
-            355
+            75,
+            363
           ],
           "Pathology": [
-            297,
+            324,
             26,
-            329,
-            3055
+            363,
+            3393
           ],
           "Pharmacology And Toxicology": [
-            622,
+            679,
             104,
-            673,
-            5311
+            739,
+            5831
           ],
           "Physiology": [
-            896,
+            961,
             101,
-            1037,
-            8137
+            1118,
+            8731
           ],
           "Plant Biology": [
-            1672,
+            1800,
             192,
-            1926,
-            12942
+            2086,
+            13983
           ],
           "Scientific Communication And Education": [
-            109,
+            113,
             10,
-            128,
-            674
+            136,
+            691
           ],
           "Synthetic Biology": [
-            480,
+            509,
             59,
-            569,
-            3638
+            608,
+            3834
           ],
           "Systems Biology": [
-            777,
+            842,
             45,
-            932,
-            5676
+            1015,
+            6240
           ],
           "Zoology": [
-            230,
+            243,
             22,
-            264,
-            1564
+            280,
+            1649
           ]
         },
         "publishers": {
@@ -12087,651 +12087,651 @@
         },
         "revisions": {
           "1": [
-            38969,
-            3938
+            41665,
+            3937
           ],
           "2": [
-            5820,
-            776
+            6480,
+            777
           ],
           "3": [
-            936,
+            1063,
             135
           ],
           "4": [
-            187,
+            220,
             28
           ],
           "5+": [
-            59,
+            72,
             11
           ]
         },
         "team_buckets": {
           "1 (Solo)": [
-            909,
+            944,
             70
           ],
           "11\u201320": [
-            9238,
+            9956,
             823
           ],
           "21+": [
-            1871,
+            2021,
             108
           ],
           "2\u20133": [
-            7968,
+            8592,
             878
           ],
           "4\u20136": [
-            13958,
+            15084,
             1666
           ],
           "7\u201310": [
-            12027,
+            12903,
             1343
           ]
         },
         "types": {
           "Confirmatory Results": [
-            383,
+            414,
             32
           ],
           "Contradictory Results": [
-            71,
+            75,
             11
           ],
           "New Results": [
-            45466,
+            48951,
             4843
           ]
         },
         "institutions": {
           "Baylor College of Medicine": [
-            103,
+            112,
             10,
-            1195
+            1290
           ],
           "Boston University": [
-            118,
+            128,
             15,
-            829
+            896
           ],
           "Columbia University": [
-            137,
+            148,
             21,
-            973
+            1079
           ],
           "Cornell University": [
-            144,
+            152,
             23,
-            985
+            1028
           ],
           "Duke University": [
-            160,
+            171,
             18,
-            1170
+            1241
           ],
           "ETH Zurich": [
-            116,
+            122,
             8,
-            792
+            822
           ],
           "Emory University": [
-            97,
+            102,
             7,
-            826
+            898
           ],
           "Georgia Institute of Technology": [
-            107,
+            115,
             8,
-            656
+            698
           ],
           "Harvard Medical School": [
-            103,
+            107,
             7,
-            842
+            887
           ],
           "Harvard University": [
-            104,
+            116,
             8,
-            653
+            768
           ],
           "Icahn School of Medicine at Mount Sinai": [
-            72,
+            79,
             8,
-            715
+            806
           ],
           "Imperial College London": [
-            137,
+            145,
             15,
-            1060
+            1154
           ],
           "Johns Hopkins University": [
-            155,
+            168,
             16,
-            1233
+            1337
           ],
           "Karolinska Institutet": [
-            77,
+            83,
             7,
-            835
+            883
           ],
           "King's College London": [
-            60,
+            71,
             4,
-            520
+            618
           ],
           "Massachusetts Institute of Technology": [
-            128,
+            137,
             13,
-            818
+            862
           ],
           "McGill University": [
-            174,
+            183,
             16,
-            1327
+            1383
           ],
           "Michigan State University": [
-            117,
+            123,
             28,
-            812
+            855
           ],
           "Monash University": [
-            50,
+            54,
             7,
-            463
+            505
           ],
           "Northwestern University": [
-            118,
+            125,
             18,
-            937
+            1001
           ],
           "Princeton University": [
-            115,
+            120,
             9,
-            731
+            753
           ],
           "Stanford University": [
-            358,
+            385,
             34,
-            3416
+            3613
           ],
           "University College London": [
-            141,
+            154,
             8,
-            909
+            1006
           ],
           "University of Bristol": [
-            58,
+            65,
             8,
-            450
+            505
           ],
           "University of British Columbia": [
-            97,
+            98,
             10,
-            659
+            666
           ],
           "University of California San Diego": [
-            94,
+            102,
             12,
-            901
+            976
           ],
           "University of California, Berkeley": [
-            141,
+            145,
             13,
-            921
+            950
           ],
           "University of California, Davis": [
-            79,
+            84,
             16,
-            624
+            653
           ],
           "University of California, San Diego": [
-            76,
+            82,
             6,
-            574
+            619
           ],
           "University of California, San Francisco": [
-            101,
+            105,
             8,
-            925
+            982
           ],
           "University of Cambridge": [
-            226,
+            238,
             25,
-            1764
+            1846
           ],
           "University of Chicago": [
-            126,
+            135,
             6,
-            888
+            954
           ],
           "University of Copenhagen": [
-            114,
+            122,
             10,
-            861
+            928
           ],
           "University of Edinburgh": [
-            120,
+            128,
             17,
-            824
+            891
           ],
           "University of Florida": [
-            166,
+            178,
             22,
-            1081
+            1186
           ],
           "University of Michigan": [
-            239,
+            255,
             37,
-            1851
+            2010
           ],
           "University of Minnesota": [
-            138,
+            153,
             13,
-            1171
+            1327
           ],
           "University of North Carolina at Chapel Hill": [
-            104,
+            109,
             19,
-            996
+            1065
           ],
           "University of Oxford": [
-            248,
+            269,
             16,
-            1869
+            2007
           ],
           "University of Pennsylvania": [
-            242,
+            260,
             21,
-            2077
+            2268
           ],
           "University of Pittsburgh": [
-            144,
+            165,
             17,
-            1175
+            1338
           ],
           "University of Southern California": [
-            135,
+            149,
             15,
-            1096
+            1197
           ],
           "University of Toronto": [
-            144,
+            151,
             12,
-            932
+            968
           ],
           "University of Utah": [
-            85,
+            89,
             12,
-            601
+            620
           ],
           "University of Virginia": [
-            109,
+            117,
             15,
-            750
+            819
           ],
           "University of Washington": [
-            202,
+            218,
             21,
-            1746
+            1855
           ],
           "University of Wisconsin-Madison": [
-            141,
+            152,
             22,
-            1073
+            1142
           ],
           "University of Zurich": [
-            87,
+            92,
             8,
-            622
+            675
           ],
           "Vanderbilt University": [
-            68,
+            76,
             8,
-            551
+            593
           ],
           "Yale University": [
-            183,
+            197,
             15,
-            1331
+            1428
           ]
         }
       },
       "medrxiv": {
         "kpi": {
-          "unique_dois": 14149,
-          "version_rows": 16066,
+          "unique_dois": 15165,
+          "version_rows": 17337,
           "published_count": 1207,
-          "withdrawn_count": 43,
-          "version_sum": 16060,
+          "withdrawn_count": 46,
+          "version_sum": 17331,
           "max_versions": 9,
           "date_min": "2026-01-01",
-          "date_max": "2026-10-31",
+          "date_max": "2026-11-20",
           "author_hist": {
-            "1": 414,
-            "2": 783,
-            "3": 983,
-            "4": 1124,
-            "5": 1243,
-            "6": 1127,
-            "7": 1166,
-            "8": 1051,
-            "9": 924,
-            "10": 781,
-            "11": 606,
-            "12": 553,
-            "13": 481,
-            "14": 415,
-            "15": 297,
-            "16": 266,
-            "17": 264,
-            "18": 200,
-            "19": 166,
-            "20": 136,
-            "21": 133,
-            "22": 106,
-            "23": 98,
-            "24": 78,
-            "25": 81,
-            "26": 74,
-            "27": 65,
-            "28": 57,
-            "29": 36,
-            "30": 39,
-            "31": 402
+            "1": 427,
+            "2": 842,
+            "3": 1056,
+            "4": 1212,
+            "5": 1332,
+            "6": 1221,
+            "7": 1246,
+            "8": 1143,
+            "9": 985,
+            "10": 826,
+            "11": 647,
+            "12": 585,
+            "13": 514,
+            "14": 443,
+            "15": 322,
+            "16": 292,
+            "17": 282,
+            "18": 211,
+            "19": 179,
+            "20": 145,
+            "21": 141,
+            "22": 117,
+            "23": 106,
+            "24": 86,
+            "25": 89,
+            "26": 79,
+            "27": 68,
+            "28": 61,
+            "29": 40,
+            "30": 40,
+            "31": 428
           }
         },
         "categories": {
           "Addiction Medicine": [
-            103,
+            108,
             12,
-            121,
-            880
+            127,
+            935
           ],
           "Allergy And Immunology": [
-            76,
+            88,
             9,
-            83,
-            1037
+            96,
+            1194
           ],
           "Anesthesia": [
-            55,
+            60,
             2,
-            70,
-            422
+            76,
+            451
           ],
           "Cardiovascular Medicine": [
-            823,
+            890,
             74,
-            915,
-            8381
+            1003,
+            9037
           ],
           "Dentistry And Oral Medicine": [
-            81,
+            84,
             4,
-            90,
-            490
+            93,
+            515
           ],
           "Dermatology": [
-            69,
+            74,
             4,
-            77,
-            619
+            84,
+            708
           ],
           "Emergency Medicine": [
-            87,
+            94,
             9,
-            105,
-            758
+            112,
+            806
           ],
           "Endocrinology": [
-            238,
+            259,
             26,
-            269,
-            2215
+            291,
+            2422
           ],
           "Epidemiology": [
-            1407,
+            1521,
             122,
-            1593,
-            12111
+            1737,
+            13177
           ],
           "Forensic Medicine": [
             10,
             1,
-            10,
+            11,
             48
           ],
           "Gastroenterology": [
-            171,
+            183,
             12,
-            192,
-            1671
+            205,
+            1821
           ],
           "Genetic And Genomic Medicine": [
-            926,
+            987,
             64,
-            1064,
-            13130
+            1144,
+            14015
           ],
           "Geriatric Medicine": [
-            135,
-            13,
             144,
-            1107
+            13,
+            154,
+            1169
           ],
           "Health Economics": [
-            151,
+            158,
             16,
-            172,
-            1104
+            180,
+            1169
           ],
           "Health Informatics": [
-            980,
+            1051,
             56,
-            1197,
-            6835
+            1287,
+            7324
           ],
           "Health Policy": [
-            151,
+            166,
             11,
-            175,
-            956
+            193,
+            1054
           ],
           "Health Systems And Quality Improvement": [
-            329,
+            347,
             23,
-            371,
-            2423
+            394,
+            2552
           ],
           "Hematology": [
-            82,
+            87,
             5,
-            91,
-            967
+            96,
+            1043
           ],
           "Hiv Aids": [
-            191,
+            202,
             13,
-            207,
-            2161
+            221,
+            2296
           ],
           "Infectious Diseases": [
-            850,
+            911,
             108,
-            960,
-            9972
+            1030,
+            10695
           ],
           "Intensive Care And Critical Care Medicine": [
-            149,
+            158,
             15,
-            170,
-            1299
+            181,
+            1414
           ],
           "Medical Education": [
-            116,
+            120,
             9,
-            129,
-            821
-          ],
-          "Medical Ethics": [
-            14,
-            0,
-            17,
-            92
-          ],
-          "Nephrology": [
-            119,
-            12,
-            126,
-            1366
-          ],
-          "Neurology": [
-            1343,
-            114,
-            1504,
-            15617
-          ],
-          "Nursing": [
-            56,
-            3,
-            60,
-            261
-          ],
-          "Nutrition": [
-            196,
-            17,
-            205,
-            1471
-          ],
-          "Obstetrics And Gynecology": [
-            214,
-            13,
-            240,
-            1871
-          ],
-          "Occupational And Environmental Health": [
-            114,
-            9,
-            122,
-            788
-          ],
-          "Oncology": [
-            581,
-            46,
-            673,
-            7386
-          ],
-          "Ophthalmology": [
-            176,
-            22,
-            204,
-            1455
-          ],
-          "Orthopedics": [
-            65,
-            2,
-            72,
-            501
-          ],
-          "Otolaryngology": [
-            56,
-            6,
-            65,
-            383
-          ],
-          "Pain Medicine": [
-            92,
-            7,
-            108,
-            689
-          ],
-          "Palliative Medicine": [
-            27,
-            3,
-            30,
-            229
-          ],
-          "Pathology": [
-            85,
-            8,
-            98,
-            967
-          ],
-          "Pediatrics": [
-            242,
-            25,
-            271,
-            2309
-          ],
-          "Pharmacology And Therapeutics": [
-            96,
-            10,
-            110,
-            694
-          ],
-          "Primary Care Research": [
-            103,
-            4,
-            114,
+            134,
             847
           ],
+          "Medical Ethics": [
+            15,
+            0,
+            18,
+            94
+          ],
+          "Nephrology": [
+            127,
+            12,
+            137,
+            1491
+          ],
+          "Neurology": [
+            1441,
+            114,
+            1619,
+            16721
+          ],
+          "Nursing": [
+            59,
+            3,
+            63,
+            276
+          ],
+          "Nutrition": [
+            217,
+            17,
+            230,
+            1619
+          ],
+          "Obstetrics And Gynecology": [
+            228,
+            13,
+            255,
+            1972
+          ],
+          "Occupational And Environmental Health": [
+            120,
+            9,
+            129,
+            832
+          ],
+          "Oncology": [
+            610,
+            46,
+            711,
+            7704
+          ],
+          "Ophthalmology": [
+            192,
+            22,
+            221,
+            1563
+          ],
+          "Orthopedics": [
+            70,
+            2,
+            79,
+            534
+          ],
+          "Otolaryngology": [
+            62,
+            6,
+            76,
+            430
+          ],
+          "Pain Medicine": [
+            99,
+            7,
+            117,
+            751
+          ],
+          "Palliative Medicine": [
+            28,
+            3,
+            31,
+            235
+          ],
+          "Pathology": [
+            92,
+            8,
+            106,
+            1084
+          ],
+          "Pediatrics": [
+            258,
+            25,
+            295,
+            2451
+          ],
+          "Pharmacology And Therapeutics": [
+            103,
+            10,
+            117,
+            757
+          ],
+          "Primary Care Research": [
+            112,
+            4,
+            123,
+            943
+          ],
           "Psychiatry And Clinical Psychology": [
-            922,
+            983,
             105,
-            1056,
-            9300
+            1140,
+            9859
           ],
           "Public And Global Health": [
-            1152,
+            1223,
             84,
-            1284,
-            10070
+            1376,
+            10622
           ],
           "Radiology And Imaging": [
-            422,
+            458,
             28,
-            486,
-            3750
+            534,
+            4056
           ],
           "Rehabilitation Medicine And Physical Therapy": [
-            209,
+            236,
             19,
-            234,
-            1435
+            269,
+            1602
           ],
           "Respiratory Medicine": [
-            116,
+            126,
             10,
-            130,
-            1282
+            145,
+            1387
           ],
           "Rheumatology": [
-            102,
-            12,
             110,
-            1241
+            12,
+            119,
+            1362
           ],
           "Sexual And Reproductive Health": [
-            133,
+            146,
             12,
-            148,
-            1039
+            163,
+            1152
           ],
           "Sports Medicine": [
-            87,
+            90,
             7,
-            105,
-            642
+            111,
+            672
           ],
           "Surgery": [
-            124,
+            132,
             10,
-            143,
-            1077
+            153,
+            1147
           ],
           "Toxicology": [
             17,
@@ -12740,16 +12740,16 @@
             117
           ],
           "Transplantation": [
-            44,
+            46,
             6,
-            50,
-            582
+            53,
+            601
           ],
           "Urology": [
-            62,
+            63,
             4,
-            67,
-            543
+            69,
+            548
           ]
         },
         "publishers": {
@@ -12790,49 +12790,49 @@
         },
         "revisions": {
           "1": [
-            12599,
+            13417,
             1054
           ],
           "2": [
-            1275,
+            1429,
             118
           ],
           "3": [
-            214,
+            248,
             29
           ],
           "4": [
-            43,
+            51,
             3
           ],
           "5+": [
-            18,
+            20,
             3
           ]
         },
         "team_buckets": {
           "1 (Solo)": [
-            414,
+            427,
             22
           ],
           "11\u201320": [
-            3384,
+            3620,
             307
           ],
           "21+": [
-            1169,
+            1255,
             108
           ],
           "2\u20133": [
-            1766,
+            1898,
             107
           ],
           "4\u20136": [
-            3494,
+            3765,
             276
           ],
           "7\u201310": [
-            3922,
+            4200,
             387
           ]
         },
@@ -12849,34 +12849,34 @@
             185
           ],
           "Columbia University": [
-            25,
+            26,
             2,
-            288
+            310
           ],
           "Cornell University": [
-            14,
+            15,
             0,
-            56
+            58
           ],
           "Duke University": [
-            26,
+            27,
             1,
-            334
+            338
           ],
           "ETH Zurich": [
-            7,
+            8,
             0,
-            48
+            54
           ],
           "Emory University": [
-            45,
+            52,
             6,
-            391
+            459
           ],
           "Georgia Institute of Technology": [
-            6,
+            7,
             0,
-            43
+            56
           ],
           "Harvard Medical School": [
             28,
@@ -12886,32 +12886,32 @@
           "Harvard University": [
             19,
             1,
-            128
+            129
           ],
           "Icahn School of Medicine at Mount Sinai": [
-            59,
+            64,
             2,
-            654
+            705
           ],
           "Imperial College London": [
-            63,
+            66,
             6,
-            594
+            651
           ],
           "Johns Hopkins University": [
-            32,
+            35,
             3,
-            255
+            281
           ],
           "Karolinska Institutet": [
-            36,
+            39,
             4,
-            364
+            411
           ],
           "King's College London": [
-            69,
+            73,
             7,
-            828
+            871
           ],
           "Massachusetts Institute of Technology": [
             8,
@@ -12919,9 +12919,9 @@
             95
           ],
           "McGill University": [
-            60,
+            63,
             7,
-            508
+            556
           ],
           "Michigan State University": [
             5,
@@ -12929,14 +12929,14 @@
             28
           ],
           "Monash University": [
-            29,
+            32,
             1,
-            273
+            292
           ],
           "Northwestern University": [
-            15,
+            17,
             4,
-            135
+            170
           ],
           "Princeton University": [
             4,
@@ -12944,19 +12944,19 @@
             15
           ],
           "Stanford University": [
-            100,
+            105,
             6,
-            947
+            999
           ],
           "University College London": [
-            117,
+            123,
             13,
-            940
+            982
           ],
           "University of Bristol": [
-            59,
+            63,
             8,
-            485
+            523
           ],
           "University of British Columbia": [
             24,
@@ -12964,9 +12964,9 @@
             160
           ],
           "University of California San Diego": [
-            18,
+            22,
             2,
-            204
+            236
           ],
           "University of California, Berkeley": [
             15,
@@ -12979,84 +12979,84 @@
             66
           ],
           "University of California, San Diego": [
-            14,
-            3,
-            100
-          ],
-          "University of California, San Francisco": [
-            53,
-            4,
-            602
-          ],
-          "University of Cambridge": [
-            51,
-            5,
-            488
-          ],
-          "University of Chicago": [
-            17,
-            2,
-            119
-          ],
-          "University of Copenhagen": [
-            7,
-            1,
-            68
-          ],
-          "University of Edinburgh": [
-            23,
-            4,
-            225
-          ],
-          "University of Florida": [
-            25,
-            2,
-            164
-          ],
-          "University of Michigan": [
-            49,
-            5,
-            441
-          ],
-          "University of Minnesota": [
             16,
-            2,
+            3,
             135
           ],
-          "University of North Carolina at Chapel Hill": [
-            34,
+          "University of California, San Francisco": [
+            59,
             4,
-            368
+            696
+          ],
+          "University of Cambridge": [
+            54,
+            5,
+            564
+          ],
+          "University of Chicago": [
+            18,
+            2,
+            128
+          ],
+          "University of Copenhagen": [
+            8,
+            1,
+            75
+          ],
+          "University of Edinburgh": [
+            25,
+            4,
+            240
+          ],
+          "University of Florida": [
+            27,
+            2,
+            187
+          ],
+          "University of Michigan": [
+            51,
+            5,
+            463
+          ],
+          "University of Minnesota": [
+            17,
+            2,
+            141
+          ],
+          "University of North Carolina at Chapel Hill": [
+            36,
+            4,
+            390
           ],
           "University of Oxford": [
-            100,
+            105,
             10,
-            972
+            1042
           ],
           "University of Pennsylvania": [
-            83,
+            92,
             9,
-            818
+            900
           ],
           "University of Pittsburgh": [
-            53,
+            64,
             7,
-            509
+            630
           ],
           "University of Southern California": [
-            30,
+            32,
             3,
-            257
-          ],
-          "University of Toronto": [
-            37,
-            2,
             287
           ],
+          "University of Toronto": [
+            41,
+            2,
+            346
+          ],
           "University of Utah": [
-            31,
+            34,
             6,
-            316
+            339
           ],
           "University of Virginia": [
             16,
@@ -13064,19 +13064,19 @@
             191
           ],
           "University of Washington": [
-            45,
+            49,
             2,
-            614
+            655
           ],
           "University of Wisconsin-Madison": [
-            23,
+            24,
             2,
-            227
+            235
           ],
           "University of Zurich": [
-            16,
+            17,
             0,
-            167
+            177
           ],
           "Vanderbilt University": [
             6,
@@ -13249,7 +13249,8 @@
       "2026-07",
       "2026-08",
       "2026-09",
-      "2026-10"
+      "2026-10",
+      "2026-11"
     ],
     "biorxiv": [
       60,
@@ -13407,7 +13408,8 @@
       4677,
       4274,
       5049,
-      5422
+      5422,
+      3529
     ],
     "medrxiv": [
       0,
@@ -13565,7 +13567,8 @@
       1601,
       1378,
       1597,
-      1603
+      1603,
+      1016
     ],
     "total": [
       60,
@@ -13723,7 +13726,8 @@
       6278,
       5652,
       6646,
-      7025
+      7025,
+      4545
     ],
     "cumulative_total": [
       60,
@@ -13881,7 +13885,8 @@
       430183,
       435835,
       442481,
-      449506
+      449506,
+      454051
     ]
   },
   "annual_summary": {
@@ -13915,7 +13920,7 @@
       39153,
       43630,
       49324,
-      45971
+      49500
     ],
     "medrxiv": [
       0,
@@ -13931,7 +13936,7 @@
       11046,
       12864,
       14998,
-      14149
+      15165
     ],
     "total": [
       109,
@@ -13947,7 +13952,7 @@
       50199,
       56494,
       64322,
-      60120
+      64665
     ],
     "pub_rate_pct": [
       67.89,
@@ -13963,7 +13968,7 @@
       46.64,
       45.11,
       39.8,
-      10.14
+      9.43
     ],
     "biorxiv_pub_rate_pct": [
       67.89,
@@ -13979,7 +13984,7 @@
       48.28,
       46.38,
       41.78,
-      10.63
+      9.87
     ],
     "medrxiv_pub_rate_pct": [
       null,
@@ -13995,167 +14000,167 @@
       40.79,
       40.82,
       33.29,
-      8.53
+      7.96
     ]
   },
   "top_categories": {
     "all": [
       {
         "category": "Neuroscience",
-        "count": 64525,
-        "overall_pub_pct": 52.4,
+        "count": 65190,
+        "overall_pub_pct": 51.9,
         "mature_pub_pct": 62.6,
         "median_authors": 6.0,
         "avg_versions": 1.48
       },
       {
         "category": "Microbiology",
-        "count": 33844,
-        "overall_pub_pct": 49.6,
+        "count": 34162,
+        "overall_pub_pct": 49.1,
         "mature_pub_pct": 56.4,
         "median_authors": 7.0,
         "avg_versions": 1.28
       },
       {
         "category": "Bioinformatics",
-        "count": 31435,
-        "overall_pub_pct": 48.1,
+        "count": 31897,
+        "overall_pub_pct": 47.4,
         "mature_pub_pct": 58.1,
         "median_authors": 5.0,
         "avg_versions": 1.45
       },
       {
         "category": "Cell Biology",
-        "count": 20649,
-        "overall_pub_pct": 49.7,
+        "count": 20846,
+        "overall_pub_pct": 49.3,
         "mature_pub_pct": 58.9,
         "median_authors": 7.0,
         "avg_versions": 1.33
       },
       {
         "category": "Genomics",
-        "count": 17026,
-        "overall_pub_pct": 54.6,
+        "count": 17198,
+        "overall_pub_pct": 54.0,
         "mature_pub_pct": 62.8,
         "median_authors": 7.0,
         "avg_versions": 1.41
       },
       {
         "category": "Biophysics",
-        "count": 16747,
-        "overall_pub_pct": 57.9,
+        "count": 16883,
+        "overall_pub_pct": 57.5,
         "mature_pub_pct": 66.5,
         "median_authors": 5.0,
         "avg_versions": 1.38
       },
       {
         "category": "Evolutionary Biology",
-        "count": 16719,
-        "overall_pub_pct": 56.6,
+        "count": 16833,
+        "overall_pub_pct": 56.2,
         "mature_pub_pct": 64.6,
         "median_authors": 4.0,
         "avg_versions": 1.55
       },
       {
         "category": "Cancer Biology",
-        "count": 15386,
-        "overall_pub_pct": 43.0,
+        "count": 15540,
+        "overall_pub_pct": 42.5,
         "mature_pub_pct": 53.0,
         "median_authors": 10.0,
         "avg_versions": 1.31
       },
       {
         "category": "Ecology",
-        "count": 15359,
-        "overall_pub_pct": 49.4,
+        "count": 15474,
+        "overall_pub_pct": 49.0,
         "mature_pub_pct": 58.0,
         "median_authors": 5.0,
         "avg_versions": 1.4
       },
       {
         "category": "Immunology",
-        "count": 14970,
-        "overall_pub_pct": 45.2,
+        "count": 15140,
+        "overall_pub_pct": 44.7,
         "mature_pub_pct": 53.6,
         "median_authors": 10.0,
         "avg_versions": 1.28
       },
       {
         "category": "Biochemistry",
-        "count": 14914,
-        "overall_pub_pct": 53.6,
+        "count": 15050,
+        "overall_pub_pct": 53.2,
         "mature_pub_pct": 62.1,
         "median_authors": 7.0,
         "avg_versions": 1.28
       },
       {
         "category": "Molecular Biology",
-        "count": 14199,
-        "overall_pub_pct": 49.2,
+        "count": 14345,
+        "overall_pub_pct": 48.7,
         "mature_pub_pct": 57.7,
         "median_authors": 7.0,
         "avg_versions": 1.3
       },
       {
         "category": "Epidemiology",
-        "count": 13752,
-        "overall_pub_pct": 51.6,
+        "count": 13866,
+        "overall_pub_pct": 51.1,
         "mature_pub_pct": 58.9,
         "median_authors": 6.0,
         "avg_versions": 1.33
       },
       {
         "category": "Infectious Diseases",
-        "count": 12913,
-        "overall_pub_pct": 57.6,
+        "count": 12974,
+        "overall_pub_pct": 57.3,
         "mature_pub_pct": 62.8,
         "median_authors": 10.0,
         "avg_versions": 1.27
       },
       {
         "category": "Plant Biology",
-        "count": 12777,
-        "overall_pub_pct": 45.1,
+        "count": 12905,
+        "overall_pub_pct": 44.6,
         "mature_pub_pct": 51.7,
         "median_authors": 7.0,
         "avg_versions": 1.28
       },
       {
         "category": "Bioengineering",
-        "count": 12056,
-        "overall_pub_pct": 47.5,
+        "count": 12190,
+        "overall_pub_pct": 47.0,
         "mature_pub_pct": 56.8,
         "median_authors": 7.0,
         "avg_versions": 1.27
       },
       {
         "category": "Genetics",
-        "count": 11892,
-        "overall_pub_pct": 56.4,
+        "count": 11988,
+        "overall_pub_pct": 56.0,
         "mature_pub_pct": 62.8,
         "median_authors": 7.0,
         "avg_versions": 1.37
       },
       {
         "category": "Developmental Biology",
-        "count": 10427,
-        "overall_pub_pct": 52.3,
+        "count": 10506,
+        "overall_pub_pct": 51.9,
         "mature_pub_pct": 60.0,
         "median_authors": 6.0,
         "avg_versions": 1.36
       },
       {
         "category": "Public And Global Health",
-        "count": 8208,
-        "overall_pub_pct": 43.9,
+        "count": 8279,
+        "overall_pub_pct": 43.5,
         "mature_pub_pct": 54.1,
         "median_authors": 7.0,
-        "avg_versions": 1.21
+        "avg_versions": 1.22
       },
       {
         "category": "Systems Biology",
-        "count": 7341,
-        "overall_pub_pct": 53.5,
+        "count": 7406,
+        "overall_pub_pct": 53.0,
         "mature_pub_pct": 61.7,
         "median_authors": 5.0,
         "avg_versions": 1.42
@@ -14164,160 +14169,160 @@
     "biorxiv": [
       {
         "category": "Neuroscience",
-        "count": 64525,
-        "overall_pub_pct": 52.4,
+        "count": 65190,
+        "overall_pub_pct": 51.9,
         "mature_pub_pct": 62.6,
         "median_authors": 6.0,
         "avg_versions": 1.48
       },
       {
         "category": "Microbiology",
-        "count": 33844,
-        "overall_pub_pct": 49.6,
+        "count": 34162,
+        "overall_pub_pct": 49.1,
         "mature_pub_pct": 56.4,
         "median_authors": 7.0,
         "avg_versions": 1.28
       },
       {
         "category": "Bioinformatics",
-        "count": 31435,
-        "overall_pub_pct": 48.1,
+        "count": 31897,
+        "overall_pub_pct": 47.4,
         "mature_pub_pct": 58.1,
         "median_authors": 5.0,
         "avg_versions": 1.45
       },
       {
         "category": "Cell Biology",
-        "count": 20649,
-        "overall_pub_pct": 49.7,
+        "count": 20846,
+        "overall_pub_pct": 49.3,
         "mature_pub_pct": 58.9,
         "median_authors": 7.0,
         "avg_versions": 1.33
       },
       {
         "category": "Genomics",
-        "count": 17026,
-        "overall_pub_pct": 54.6,
+        "count": 17198,
+        "overall_pub_pct": 54.0,
         "mature_pub_pct": 62.8,
         "median_authors": 7.0,
         "avg_versions": 1.41
       },
       {
         "category": "Biophysics",
-        "count": 16747,
-        "overall_pub_pct": 57.9,
+        "count": 16883,
+        "overall_pub_pct": 57.5,
         "mature_pub_pct": 66.5,
         "median_authors": 5.0,
         "avg_versions": 1.38
       },
       {
         "category": "Evolutionary Biology",
-        "count": 16719,
-        "overall_pub_pct": 56.6,
+        "count": 16833,
+        "overall_pub_pct": 56.2,
         "mature_pub_pct": 64.6,
         "median_authors": 4.0,
         "avg_versions": 1.55
       },
       {
         "category": "Cancer Biology",
-        "count": 15386,
-        "overall_pub_pct": 43.0,
+        "count": 15540,
+        "overall_pub_pct": 42.5,
         "mature_pub_pct": 53.0,
         "median_authors": 10.0,
         "avg_versions": 1.31
       },
       {
         "category": "Ecology",
-        "count": 15359,
-        "overall_pub_pct": 49.4,
+        "count": 15474,
+        "overall_pub_pct": 49.0,
         "mature_pub_pct": 58.0,
         "median_authors": 5.0,
         "avg_versions": 1.4
       },
       {
         "category": "Immunology",
-        "count": 14970,
-        "overall_pub_pct": 45.2,
+        "count": 15140,
+        "overall_pub_pct": 44.7,
         "mature_pub_pct": 53.6,
         "median_authors": 10.0,
         "avg_versions": 1.28
       },
       {
         "category": "Biochemistry",
-        "count": 14914,
-        "overall_pub_pct": 53.6,
+        "count": 15050,
+        "overall_pub_pct": 53.2,
         "mature_pub_pct": 62.1,
         "median_authors": 7.0,
         "avg_versions": 1.28
       },
       {
         "category": "Molecular Biology",
-        "count": 14199,
-        "overall_pub_pct": 49.2,
+        "count": 14345,
+        "overall_pub_pct": 48.7,
         "mature_pub_pct": 57.7,
         "median_authors": 7.0,
         "avg_versions": 1.3
       },
       {
         "category": "Plant Biology",
-        "count": 12777,
-        "overall_pub_pct": 45.1,
+        "count": 12905,
+        "overall_pub_pct": 44.6,
         "mature_pub_pct": 51.7,
         "median_authors": 7.0,
         "avg_versions": 1.28
       },
       {
         "category": "Bioengineering",
-        "count": 12056,
-        "overall_pub_pct": 47.5,
+        "count": 12190,
+        "overall_pub_pct": 47.0,
         "mature_pub_pct": 56.8,
         "median_authors": 7.0,
         "avg_versions": 1.27
       },
       {
         "category": "Genetics",
-        "count": 11892,
-        "overall_pub_pct": 56.4,
+        "count": 11988,
+        "overall_pub_pct": 56.0,
         "mature_pub_pct": 62.8,
         "median_authors": 7.0,
         "avg_versions": 1.37
       },
       {
         "category": "Developmental Biology",
-        "count": 10427,
-        "overall_pub_pct": 52.3,
+        "count": 10506,
+        "overall_pub_pct": 51.9,
         "mature_pub_pct": 60.0,
         "median_authors": 6.0,
         "avg_versions": 1.36
       },
       {
         "category": "Systems Biology",
-        "count": 7341,
-        "overall_pub_pct": 53.5,
+        "count": 7406,
+        "overall_pub_pct": 53.0,
         "mature_pub_pct": 61.7,
         "median_authors": 5.0,
         "avg_versions": 1.42
       },
       {
         "category": "Physiology",
-        "count": 6427,
-        "overall_pub_pct": 46.5,
+        "count": 6492,
+        "overall_pub_pct": 46.1,
         "mature_pub_pct": 55.4,
         "median_authors": 7.0,
         "avg_versions": 1.29
       },
       {
         "category": "Animal Behavior And Cognition",
-        "count": 5589,
-        "overall_pub_pct": 50.5,
-        "mature_pub_pct": 58.6,
+        "count": 5634,
+        "overall_pub_pct": 50.1,
+        "mature_pub_pct": 58.7,
         "median_authors": 4.0,
         "avg_versions": 1.46
       },
       {
         "category": "Pharmacology And Toxicology",
-        "count": 4221,
-        "overall_pub_pct": 47.1,
+        "count": 4278,
+        "overall_pub_pct": 46.4,
         "mature_pub_pct": 54.0,
         "median_authors": 7.0,
         "avg_versions": 1.24
@@ -14326,160 +14331,160 @@
     "medrxiv": [
       {
         "category": "Infectious Diseases",
-        "count": 12913,
-        "overall_pub_pct": 57.6,
+        "count": 12974,
+        "overall_pub_pct": 57.3,
         "mature_pub_pct": 62.8,
         "median_authors": 10.0,
         "avg_versions": 1.27
       },
       {
         "category": "Epidemiology",
-        "count": 12197,
-        "overall_pub_pct": 49.7,
+        "count": 12311,
+        "overall_pub_pct": 49.2,
         "mature_pub_pct": 57.7,
         "median_authors": 6.0,
         "avg_versions": 1.33
       },
       {
         "category": "Public And Global Health",
-        "count": 8208,
-        "overall_pub_pct": 43.9,
+        "count": 8279,
+        "overall_pub_pct": 43.5,
         "mature_pub_pct": 54.1,
         "median_authors": 7.0,
-        "avg_versions": 1.21
+        "avg_versions": 1.22
       },
       {
         "category": "Neurology",
-        "count": 6257,
-        "overall_pub_pct": 42.4,
+        "count": 6355,
+        "overall_pub_pct": 41.7,
         "mature_pub_pct": 56.7,
         "median_authors": 9.0,
         "avg_versions": 1.21
       },
       {
         "category": "Genetic And Genomic Medicine",
-        "count": 5652,
-        "overall_pub_pct": 44.8,
+        "count": 5712,
+        "overall_pub_pct": 44.3,
         "mature_pub_pct": 57.7,
         "median_authors": 11.0,
         "avg_versions": 1.28
       },
       {
         "category": "Psychiatry And Clinical Psychology",
-        "count": 4923,
-        "overall_pub_pct": 47.3,
+        "count": 4984,
+        "overall_pub_pct": 46.8,
         "mature_pub_pct": 60.4,
         "median_authors": 8.0,
         "avg_versions": 1.24
       },
       {
         "category": "Cardiovascular Medicine",
-        "count": 4248,
-        "overall_pub_pct": 35.0,
+        "count": 4315,
+        "overall_pub_pct": 34.4,
         "mature_pub_pct": 46.1,
         "median_authors": 9.0,
         "avg_versions": 1.17
       },
       {
         "category": "Health Informatics",
-        "count": 4022,
-        "overall_pub_pct": 31.3,
+        "count": 4093,
+        "overall_pub_pct": 30.7,
         "mature_pub_pct": 43.9,
         "median_authors": 6.0,
         "avg_versions": 1.31
       },
       {
         "category": "Oncology",
-        "count": 3031,
-        "overall_pub_pct": 38.7,
+        "count": 3060,
+        "overall_pub_pct": 38.3,
         "mature_pub_pct": 51.2,
         "median_authors": 10.0,
         "avg_versions": 1.23
       },
       {
         "category": "Radiology And Imaging",
-        "count": 2033,
-        "overall_pub_pct": 39.4,
+        "count": 2069,
+        "overall_pub_pct": 38.7,
         "mature_pub_pct": 51.1,
         "median_authors": 8.0,
         "avg_versions": 1.24
       },
       {
         "category": "Pediatrics",
-        "count": 1568,
-        "overall_pub_pct": 43.5,
+        "count": 1584,
+        "overall_pub_pct": 43.1,
         "mature_pub_pct": 55.4,
         "median_authors": 8.0,
         "avg_versions": 1.18
       },
       {
         "category": "Health Systems And Quality Improvement",
-        "count": 1548,
-        "overall_pub_pct": 34.4,
+        "count": 1566,
+        "overall_pub_pct": 34.0,
         "mature_pub_pct": 46.1,
         "median_authors": 6.0,
         "avg_versions": 1.18
       },
       {
         "category": "Endocrinology",
-        "count": 1395,
-        "overall_pub_pct": 39.3,
+        "count": 1416,
+        "overall_pub_pct": 38.7,
         "mature_pub_pct": 50.6,
         "median_authors": 8.0,
         "avg_versions": 1.2
       },
       {
         "category": "Rehabilitation Medicine And Physical Therapy",
-        "count": 1243,
-        "overall_pub_pct": 38.5,
+        "count": 1270,
+        "overall_pub_pct": 37.7,
         "mature_pub_pct": 49.7,
         "median_authors": 6.0,
         "avg_versions": 1.21
       },
       {
         "category": "Hiv Aids",
-        "count": 1195,
-        "overall_pub_pct": 42.5,
+        "count": 1206,
+        "overall_pub_pct": 42.1,
         "mature_pub_pct": 52.5,
         "median_authors": 9.0,
         "avg_versions": 1.15
       },
       {
         "category": "Health Policy",
-        "count": 1181,
-        "overall_pub_pct": 38.5,
+        "count": 1196,
+        "overall_pub_pct": 38.0,
         "mature_pub_pct": 46.4,
         "median_authors": 5.0,
         "avg_versions": 1.25
       },
       {
         "category": "Obstetrics And Gynecology",
-        "count": 1102,
-        "overall_pub_pct": 35.3,
+        "count": 1116,
+        "overall_pub_pct": 34.9,
         "mature_pub_pct": 47.3,
         "median_authors": 7.0,
         "avg_versions": 1.17
       },
       {
         "category": "Respiratory Medicine",
-        "count": 1049,
-        "overall_pub_pct": 47.2,
+        "count": 1060,
+        "overall_pub_pct": 46.7,
         "mature_pub_pct": 55.7,
         "median_authors": 9.0,
         "avg_versions": 1.21
       },
       {
         "category": "Gastroenterology",
-        "count": 1047,
-        "overall_pub_pct": 41.1,
+        "count": 1059,
+        "overall_pub_pct": 40.6,
         "mature_pub_pct": 52.6,
         "median_authors": 9.0,
         "avg_versions": 1.18
       },
       {
         "category": "Intensive Care And Critical Care Medicine",
-        "count": 974,
-        "overall_pub_pct": 44.0,
+        "count": 983,
+        "overall_pub_pct": 43.6,
         "mature_pub_pct": 54.7,
         "median_authors": 8.0,
         "avg_versions": 1.23
@@ -14534,7 +14539,7 @@
         54.3,
         51.1,
         39.9,
-        8.8
+        8.1
       ],
       [
         69.0,
@@ -14548,7 +14553,7 @@
         36.7,
         38.7,
         46.1,
-        14.0
+        13.1
       ],
       [
         65.2,
@@ -14562,7 +14567,7 @@
         52.0,
         46.5,
         38.4,
-        7.9
+        7.2
       ],
       [
         50.0,
@@ -14576,7 +14581,7 @@
         47.4,
         47.9,
         39.8,
-        9.7
+        9.1
       ],
       [
         75.5,
@@ -14590,7 +14595,7 @@
         48.0,
         43.4,
         42.3,
-        10.0
+        9.2
       ],
       [
         75.7,
@@ -14604,7 +14609,7 @@
         56.7,
         57.1,
         51.4,
-        16.1
+        15.2
       ],
       [
         76.5,
@@ -14618,7 +14623,7 @@
         50.1,
         49.9,
         46.3,
-        10.0
+        9.4
       ],
       [
         44.7,
@@ -14632,7 +14637,7 @@
         43.9,
         42.1,
         32.6,
-        6.5
+        6.0
       ],
       [
         75.3,
@@ -14646,7 +14651,7 @@
         50.9,
         47.3,
         42.1,
-        9.4
+        8.9
       ],
       [
         null,
@@ -14660,7 +14665,7 @@
         43.3,
         40.7,
         37.6,
-        9.5
+        8.8
       ],
       [
         75.0,
@@ -14674,7 +14679,7 @@
         52.2,
         51.5,
         49.2,
-        15.0
+        14.1
       ],
       [
         75.0,
@@ -14688,7 +14693,7 @@
         48.5,
         45.3,
         39.7,
-        11.7
+        10.8
       ],
       [
         null,
@@ -14702,7 +14707,7 @@
         46.0,
         45.2,
         37.1,
-        8.7
+        8.0
       ],
       [
         null,
@@ -14716,7 +14721,7 @@
         39.4,
         41.8,
         39.5,
-        12.7
+        11.9
       ],
       [
         76.5,
@@ -14730,7 +14735,7 @@
         36.0,
         35.2,
         41.6,
-        11.5
+        10.7
       ],
       [
         47.8,
@@ -14744,7 +14749,7 @@
         48.7,
         49.3,
         44.2,
-        13.8
+        13.0
       ],
       [
         76.1,
@@ -14758,7 +14763,7 @@
         46.7,
         44.5,
         44.8,
-        11.1
+        10.2
       ],
       [
         77.4,
@@ -14772,7 +14777,7 @@
         47.8,
         46.4,
         40.8,
-        9.6
+        8.9
       ]
     ],
     "counts": [
@@ -14786,9 +14791,9 @@
         6412,
         6304,
         7169,
-        8011,
+        8012,
         9078,
-        8365
+        9029
       ],
       [
         58,
@@ -14802,7 +14807,7 @@
         3675,
         4186,
         4644,
-        4335
+        4653
       ],
       [
         313,
@@ -14816,7 +14821,7 @@
         3240,
         3619,
         4242,
-        4596
+        5058
       ],
       [
         20,
@@ -14830,7 +14835,7 @@
         2456,
         2629,
         2923,
-        2701
+        2898
       ],
       [
         237,
@@ -14844,7 +14849,7 @@
         1595,
         1777,
         2033,
-        1851
+        2023
       ],
       [
         37,
@@ -14858,7 +14863,7 @@
         1877,
         2000,
         2281,
-        2167
+        2303
       ],
       [
         324,
@@ -14869,10 +14874,10 @@
         1770,
         1679,
         1613,
-        1669,
+        1668,
         1730,
         1887,
-        1815
+        1930
       ],
       [
         47,
@@ -14886,7 +14891,7 @@
         1789,
         2101,
         2488,
-        2217
+        2371
       ],
       [
         85,
@@ -14897,10 +14902,10 @@
         1787,
         1694,
         1478,
-        1577,
+        1578,
         1771,
         2103,
-        2035
+        2149
       ],
       [
         14,
@@ -14914,7 +14919,7 @@
         1701,
         1935,
         2279,
-        2011
+        2181
       ],
       [
         20,
@@ -14928,7 +14933,7 @@
         1777,
         2003,
         2266,
-        2056
+        2192
       ],
       [
         20,
@@ -14942,7 +14947,7 @@
         1722,
         1880,
         2119,
-        1800
+        1946
       ],
       [
         0,
@@ -14956,7 +14961,7 @@
         1243,
         1240,
         1377,
-        1407
+        1521
       ],
       [
         0,
@@ -14970,7 +14975,7 @@
         1046,
         1098,
         1068,
-        850
+        911
       ],
       [
         34,
@@ -14984,7 +14989,7 @@
         1437,
         1684,
         1787,
-        1672
+        1800
       ],
       [
         23,
@@ -14998,7 +15003,7 @@
         1448,
         1700,
         1968,
-        2027
+        2161
       ],
       [
         188,
@@ -15012,7 +15017,7 @@
         1075,
         1107,
         1191,
-        1050
+        1146
       ],
       [
         31,
@@ -15026,7 +15031,7 @@
         1172,
         1305,
         1355,
-        1072
+        1151
       ]
     ]
   },
@@ -15034,85 +15039,85 @@
     "biorxiv": [
       {
         "versions": "1",
-        "count": 188139,
-        "published_count": 106632,
-        "pub_rate_pct": 56.68,
-        "ci_low": 56.45,
-        "ci_high": 56.9
+        "count": 188101,
+        "published_count": 106631,
+        "pub_rate_pct": 56.69,
+        "ci_low": 56.46,
+        "ci_high": 56.91
       },
       {
         "versions": "2",
-        "count": 51617,
-        "published_count": 33498,
-        "pub_rate_pct": 64.9,
+        "count": 51625,
+        "published_count": 33499,
+        "pub_rate_pct": 64.89,
         "ci_low": 64.48,
-        "ci_high": 65.31
+        "ci_high": 65.3
       },
       {
         "versions": "3",
-        "count": 15823,
+        "count": 15842,
         "published_count": 10810,
-        "pub_rate_pct": 68.32,
-        "ci_low": 67.59,
-        "ci_high": 69.04
+        "pub_rate_pct": 68.24,
+        "ci_low": 67.51,
+        "ci_high": 68.96
       },
       {
         "versions": "4",
-        "count": 4843,
+        "count": 4848,
         "published_count": 3397,
-        "pub_rate_pct": 70.14,
-        "ci_low": 68.84,
-        "ci_high": 71.41
+        "pub_rate_pct": 70.07,
+        "ci_low": 68.77,
+        "ci_high": 71.34
       },
       {
         "versions": "5+",
-        "count": 2477,
+        "count": 2483,
         "published_count": 1743,
-        "pub_rate_pct": 70.37,
-        "ci_low": 68.54,
-        "ci_high": 72.13
+        "pub_rate_pct": 70.2,
+        "ci_low": 68.37,
+        "ci_high": 71.96
       }
     ],
     "medrxiv": [
       {
         "versions": "1",
-        "count": 49905,
+        "count": 49904,
         "published_count": 26713,
         "pub_rate_pct": 53.53,
         "ci_low": 53.09,
-        "ci_high": 53.96
+        "ci_high": 53.97
       },
       {
         "versions": "2",
-        "count": 9170,
+        "count": 9169,
         "published_count": 5691,
-        "pub_rate_pct": 62.06,
-        "ci_low": 61.06,
-        "ci_high": 63.05
+        "pub_rate_pct": 62.07,
+        "ci_low": 61.07,
+        "ci_high": 63.06
       },
       {
         "versions": "3",
-        "count": 2180,
+        "count": 2182,
         "published_count": 1455,
-        "pub_rate_pct": 66.74,
-        "ci_low": 64.74,
-        "ci_high": 68.69
+        "pub_rate_pct": 66.68,
+        "ci_low": 64.68,
+        "ci_high": 68.63
       },
       {
         "versions": "4",
-        "count": 606,
+        "count": 605,
         "published_count": 398,
-        "pub_rate_pct": 65.68,
-        "ci_low": 61.81,
-        "ci_high": 69.35
+        "pub_rate_pct": 65.79,
+        "ci_low": 61.92,
+        "ci_high": 69.46
       },
       {
         "versions": "5+",
-        "count": 304,
+        "count": 305,
         "published_count": 180,
-        "pub_rate_pct": 59.21,
-        "ci_low": 53.6,
-        "ci_high": 64.59
+        "pub_rate_pct": 59.02,
+        "ci_low": 53.42,
+        "ci_high": 64.39
       }
     ]
   },
@@ -15385,11 +15390,11 @@
           20.0,
           15.05,
           16.96,
-          19.34,
+          19.35,
           18.74,
           19.69,
           29.42,
-          34.96
+          35.08
         ],
         "cc_by_nc_nd": [
           34.2,
@@ -15401,10 +15406,10 @@
           38.62,
           38.21,
           37.34,
-          37.35,
-          37.99,
+          37.36,
+          38.0,
           28.8,
-          28.21
+          28.19
         ],
         "cc_by_nc": [
           9.26,
@@ -15419,7 +15424,7 @@
           7.51,
           7.89,
           11.62,
-          11.05
+          11.09
         ],
         "cc_by_nd": [
           6.09,
@@ -15432,9 +15437,9 @@
           6.47,
           6.2,
           6.24,
-          5.93,
+          5.92,
           3.79,
-          3.16
+          3.14
         ],
         "cc_no": [
           29.68,
@@ -15449,7 +15454,7 @@
           28.81,
           27.05,
           24.17,
-          20.37
+          20.3
         ],
         "cc0": [
           0.0,
@@ -15464,7 +15469,7 @@
           1.31,
           1.35,
           2.17,
-          1.92
+          1.9
         ],
         "other": [
           0.0,
@@ -15479,7 +15484,7 @@
           0.03,
           0.1,
           0.02,
-          0.33
+          0.31
         ]
       },
       "biorxiv": {
@@ -15492,11 +15497,11 @@
           20.11,
           16.37,
           18.07,
-          18.01,
+          18.02,
           17.48,
           18.24,
-          27.3,
-          33.97
+          27.29,
+          34.16
         ],
         "cc_by_nc_nd": [
           34.2,
@@ -15508,10 +15513,10 @@
           37.13,
           37.1,
           37.86,
-          38.15,
+          38.16,
           38.7,
           29.98,
-          28.84
+          28.71
         ],
         "cc_by_nc": [
           9.26,
@@ -15525,8 +15530,8 @@
           7.26,
           7.98,
           8.33,
-          12.13,
-          11.56
+          12.14,
+          11.6
         ],
         "cc_by_nd": [
           6.09,
@@ -15539,9 +15544,9 @@
           5.63,
           5.68,
           5.79,
-          5.55,
+          5.54,
           3.72,
-          3.09
+          3.08
         ],
         "cc_no": [
           29.68,
@@ -15554,9 +15559,9 @@
           30.88,
           29.85,
           29.45,
-          28.03,
-          24.99,
-          20.91
+          28.02,
+          24.98,
+          20.83
         ],
         "cc0": [
           0.0,
@@ -15571,7 +15576,7 @@
           1.15,
           1.16,
           1.88,
-          1.62
+          1.61
         ],
         "other": [
           0.0,
@@ -15586,7 +15591,7 @@
           0.0,
           0.0,
           0.0,
-          0.02
+          0.01
         ]
       },
       "medrxiv": {
@@ -15602,8 +15607,8 @@
           23.86,
           23.22,
           24.6,
-          36.42,
-          38.17
+          36.41,
+          38.05
         ],
         "cc_by_nc_nd": [
           0.0,
@@ -15616,9 +15621,9 @@
           41.42,
           35.59,
           34.52,
-          35.6,
-          24.91,
-          26.19
+          35.61,
+          24.92,
+          26.48
         ],
         "cc_by_nc": [
           0.0,
@@ -15631,9 +15636,9 @@
           6.64,
           6.18,
           5.83,
-          6.39,
+          6.38,
           9.92,
-          9.39
+          9.44
         ],
         "cc_by_nd": [
           0.0,
@@ -15648,7 +15653,7 @@
           7.84,
           7.21,
           4.02,
-          3.37
+          3.35
         ],
         "cc_no": [
           0.0,
@@ -15663,7 +15668,7 @@
           26.56,
           23.73,
           21.49,
-          18.62
+          18.57
         ],
         "cc0": [
           0.0,
@@ -15678,7 +15683,7 @@
           1.89,
           2.01,
           3.13,
-          2.9
+          2.85
         ],
         "other": [
           0.0,
@@ -15693,7 +15698,7 @@
           0.14,
           0.45,
           0.11,
-          1.36
+          1.27
         ]
       }
     }
@@ -15753,7 +15758,7 @@
       {
         "key": "covid_sarscov2",
         "label": "COVID-19 / SARS-CoV-2",
-        "total_papers": 34480,
+        "total_papers": 34553,
         "pct_by_quarter": [
           0.0,
           0.0,
@@ -15802,7 +15807,7 @@
           2.173,
           1.967,
           1.787,
-          1.68
+          1.651
         ],
         "count_by_quarter": [
           0,
@@ -15852,13 +15857,13 @@
           359,
           354,
           332,
-          118
+          191
         ]
       },
       {
         "key": "single_cell",
         "label": "Single-Cell / scRNA-seq",
-        "total_papers": 21296,
+        "total_papers": 21629,
         "pct_by_quarter": [
           0.932,
           1.95,
@@ -15899,15 +15904,15 @@
           4.981,
           5.241,
           4.98,
-          5.453,
+          5.46,
           5.509,
           5.802,
-          5.152,
+          5.164,
           5.618,
-          5.945,
-          5.917,
-          6.089,
-          6.52
+          5.951,
+          5.928,
+          6.094,
+          6.776
         ],
         "count_by_quarter": [
           3,
@@ -15949,21 +15954,21 @@
           665,
           718,
           722,
-          815,
+          816,
           820,
           913,
-          864,
+          866,
           951,
-          982,
-          1065,
-          1131,
-          458
+          983,
+          1067,
+          1132,
+          784
         ]
       },
       {
         "key": "deep_learning",
         "label": "Deep Learning / Neural Nets",
-        "total_papers": 13040,
+        "total_papers": 13148,
         "pct_by_quarter": [
           0.621,
           0.0,
@@ -16012,7 +16017,7 @@
           3.432,
           3.444,
           2.573,
-          2.477
+          2.437
         ],
         "count_by_quarter": [
           2,
@@ -16062,13 +16067,13 @@
           567,
           620,
           478,
-          174
+          282
         ]
       },
       {
         "key": "crispr",
         "label": "CRISPR / Gene Editing",
-        "total_papers": 9658,
+        "total_papers": 9767,
         "pct_by_quarter": [
           0.621,
           1.671,
@@ -16117,7 +16122,7 @@
           2.082,
           2.117,
           2.234,
-          2.221
+          2.29
         ],
         "count_by_quarter": [
           2,
@@ -16167,13 +16172,13 @@
           344,
           381,
           415,
-          156
+          265
         ]
       },
       {
         "key": "alphafold",
         "label": "AlphaFold / Protein Structure AI",
-        "total_papers": 1629,
+        "total_papers": 1655,
         "pct_by_quarter": [
           0.0,
           0.0,
@@ -16220,9 +16225,9 @@
           0.584,
           0.478,
           0.527,
-          0.617,
-          0.668,
-          0.584
+          0.622,
+          0.678,
+          0.553
         ],
         "count_by_quarter": [
           0,
@@ -16270,15 +16275,15 @@
           98,
           81,
           87,
-          111,
-          124,
-          41
+          112,
+          126,
+          64
         ]
       },
       {
         "key": "llm_genai",
         "label": "LLMs & Generative AI",
-        "total_papers": 2095,
+        "total_papers": 2177,
         "pct_by_quarter": [
           0.0,
           0.0,
@@ -16327,7 +16332,7 @@
           1.168,
           1.406,
           1.4,
-          1.31
+          1.504
         ],
         "count_by_quarter": [
           0,
@@ -16377,13 +16382,13 @@
           193,
           253,
           260,
-          92
+          174
         ]
       },
       {
         "key": "spatial_omics",
         "label": "Spatial Transcriptomics",
-        "total_papers": 709,
+        "total_papers": 738,
         "pct_by_quarter": [
           0.0,
           0.0,
@@ -16424,7 +16429,7 @@
           0.142,
           0.234,
           0.186,
-          0.227,
+          0.234,
           0.275,
           0.235,
           0.268,
@@ -16432,7 +16437,7 @@
           0.309,
           0.444,
           0.382,
-          0.413
+          0.493
         ],
         "count_by_quarter": [
           0,
@@ -16474,7 +16479,7 @@
           19,
           32,
           27,
-          34,
+          35,
           41,
           37,
           45,
@@ -16482,13 +16487,13 @@
           51,
           80,
           71,
-          29
+          57
         ]
       },
       {
         "key": "mrna_vaccine",
         "label": "mRNA Vaccines / Therapeutics",
-        "total_papers": 1698,
+        "total_papers": 1708,
         "pct_by_quarter": [
           0.0,
           0.0,
@@ -16537,7 +16542,7 @@
           0.23,
           0.183,
           0.221,
-          0.185
+          0.199
         ],
         "count_by_quarter": [
           0,
@@ -16587,13 +16592,13 @@
           38,
           33,
           41,
-          13
+          23
         ]
       },
       {
         "key": "glp1",
         "label": "GLP-1 / Incretin Therapies",
-        "total_papers": 598,
+        "total_papers": 616,
         "pct_by_quarter": [
           0.0,
           0.0,
@@ -16642,7 +16647,7 @@
           0.285,
           0.289,
           0.291,
-          0.399
+          0.398
         ],
         "count_by_quarter": [
           0,
@@ -16692,7 +16697,7 @@
           47,
           52,
           54,
-          28
+          46
         ]
       }
     ]
@@ -16736,16 +16741,16 @@
         1.82,
         1.3,
         1.02,
-        1.32,
+        1.38,
         1.41,
-        2.13,
+        2.19,
         2.35,
         2.35,
-        1.49,
-        1.65,
+        1.54,
+        1.7,
         1.9,
-        1.69,
-        0.57
+        1.77,
+        0.83
       ],
       "count": [
         0,
@@ -16760,16 +16765,16 @@
         35,
         25,
         18,
-        23,
+        24,
         26,
-        40,
+        41,
         48,
         49,
-        34,
-        39,
+        35,
+        40,
         49,
-        45,
-        11
+        47,
+        19
       ]
     },
     "medrxiv": {
@@ -16793,9 +16798,9 @@
         3.56,
         3.14,
         2.7,
-        2.39,
-        4.14,
-        1.62
+        2.52,
+        4.27,
+        1.67
       ],
       "count": [
         0,
@@ -16817,9 +16822,9 @@
         22,
         21,
         19,
-        19,
-        33,
-        10
+        20,
+        34,
+        12
       ]
     }
   },
@@ -16937,24 +16942,24 @@
   "team_vs_pub": [
     {
       "bucket": "1 (Solo)",
-      "count": 7322,
-      "pub_rate_pct": 37.72,
+      "count": 7321,
+      "pub_rate_pct": 37.73,
       "ci_low": 36.62,
       "ci_high": 38.84
     },
     {
       "bucket": "2\u20133",
-      "count": 57051,
+      "count": 57049,
       "pub_rate_pct": 58.23,
       "ci_low": 57.82,
       "ci_high": 58.63
     },
     {
       "bucket": "4\u20136",
-      "count": 101499,
-      "pub_rate_pct": 59.99,
+      "count": 101493,
+      "pub_rate_pct": 60.0,
       "ci_low": 59.69,
-      "ci_high": 60.29
+      "ci_high": 60.3
     },
     {
       "bucket": "7\u201310",
@@ -16965,23 +16970,23 @@
     },
     {
       "bucket": "11\u201320",
-      "count": 60465,
-      "pub_rate_pct": 57.99,
+      "count": 60471,
+      "pub_rate_pct": 57.98,
       "ci_low": 57.59,
-      "ci_high": 58.38
+      "ci_high": 58.37
     },
     {
       "bucket": "21+",
-      "count": 14955,
-      "pub_rate_pct": 58.14,
-      "ci_low": 57.35,
-      "ci_high": 58.93
+      "count": 14958,
+      "pub_rate_pct": 58.13,
+      "ci_low": 57.34,
+      "ci_high": 58.92
     }
   ],
   "type_bias": [
     {
       "type": "New Results",
-      "count": 257768,
+      "count": 257765,
       "pub_rate_pct": 59.63,
       "ci_low": 59.44,
       "ci_high": 59.82
@@ -17004,210 +17009,210 @@
   "top_institutions": [
     {
       "institution": "Stanford University",
-      "total_preprints": 3706,
+      "total_preprints": 3738,
       "mature_preprints": 2754,
       "mature_pub_rate_pct": 62.1,
       "median_authors": 7.0
     },
     {
       "institution": "University of Oxford",
-      "total_preprints": 3225,
+      "total_preprints": 3251,
       "mature_preprints": 2487,
       "mature_pub_rate_pct": 63.2,
       "median_authors": 7.0
     },
     {
       "institution": "University of Cambridge",
-      "total_preprints": 2681,
+      "total_preprints": 2696,
       "mature_preprints": 2096,
       "mature_pub_rate_pct": 64.6,
       "median_authors": 6.0
     },
     {
       "institution": "University of Pennsylvania",
-      "total_preprints": 2345,
+      "total_preprints": 2372,
       "mature_preprints": 1684,
       "mature_pub_rate_pct": 61.2,
       "median_authors": 7.0
     },
     {
       "institution": "University of Washington",
-      "total_preprints": 2195,
+      "total_preprints": 2215,
       "mature_preprints": 1658,
       "mature_pub_rate_pct": 63.3,
       "median_authors": 7.0
     },
     {
       "institution": "University of Michigan",
-      "total_preprints": 2193,
+      "total_preprints": 2211,
       "mature_preprints": 1634,
       "mature_pub_rate_pct": 64.9,
       "median_authors": 6.0
     },
     {
       "institution": "University College London",
-      "total_preprints": 2101,
+      "total_preprints": 2120,
       "mature_preprints": 1578,
       "mature_pub_rate_pct": 65.2,
       "median_authors": 6.0
     },
     {
       "institution": "Imperial College London",
-      "total_preprints": 1883,
+      "total_preprints": 1894,
       "mature_preprints": 1451,
       "mature_pub_rate_pct": 65.0,
       "median_authors": 6.0
     },
     {
       "institution": "Yale University",
-      "total_preprints": 1691,
+      "total_preprints": 1705,
       "mature_preprints": 1242,
       "mature_pub_rate_pct": 59.7,
       "median_authors": 6.0
     },
     {
       "institution": "Columbia University",
-      "total_preprints": 1582,
+      "total_preprints": 1594,
       "mature_preprints": 1205,
       "mature_pub_rate_pct": 60.8,
       "median_authors": 6.0
     },
     {
       "institution": "Johns Hopkins University",
-      "total_preprints": 1571,
+      "total_preprints": 1587,
       "mature_preprints": 1139,
       "mature_pub_rate_pct": 62.9,
       "median_authors": 6.0
     },
     {
       "institution": "University of Pittsburgh",
-      "total_preprints": 1514,
+      "total_preprints": 1546,
       "mature_preprints": 1069,
       "mature_pub_rate_pct": 60.9,
       "median_authors": 7.0
     },
     {
       "institution": "University of Edinburgh",
-      "total_preprints": 1478,
+      "total_preprints": 1488,
       "mature_preprints": 1166,
       "mature_pub_rate_pct": 66.7,
       "median_authors": 6.0
     },
     {
       "institution": "McGill University",
-      "total_preprints": 1417,
+      "total_preprints": 1429,
       "mature_preprints": 980,
       "mature_pub_rate_pct": 60.8,
       "median_authors": 6.0
     },
     {
       "institution": "Cornell University",
-      "total_preprints": 1392,
+      "total_preprints": 1401,
       "mature_preprints": 1046,
       "mature_pub_rate_pct": 62.7,
       "median_authors": 5.0
     },
     {
       "institution": "University of Toronto",
-      "total_preprints": 1384,
+      "total_preprints": 1395,
       "mature_preprints": 1005,
       "mature_pub_rate_pct": 59.8,
       "median_authors": 5.0
     },
     {
       "institution": "Duke University",
-      "total_preprints": 1377,
+      "total_preprints": 1389,
       "mature_preprints": 988,
       "mature_pub_rate_pct": 65.9,
       "median_authors": 6.0
     },
     {
       "institution": "University of Florida",
-      "total_preprints": 1372,
+      "total_preprints": 1386,
       "mature_preprints": 980,
       "mature_pub_rate_pct": 58.2,
       "median_authors": 6.0
     },
     {
-      "institution": "University of California, Berkeley",
-      "total_preprints": 1365,
-      "mature_preprints": 1036,
-      "mature_pub_rate_pct": 68.5,
-      "median_authors": 5.0
-    },
-    {
       "institution": "University of Minnesota",
-      "total_preprints": 1357,
+      "total_preprints": 1373,
       "mature_preprints": 1014,
       "mature_pub_rate_pct": 61.2,
       "median_authors": 6.0
     },
     {
+      "institution": "University of California, Berkeley",
+      "total_preprints": 1369,
+      "mature_preprints": 1036,
+      "mature_pub_rate_pct": 68.5,
+      "median_authors": 5.0
+    },
+    {
       "institution": "University of Bristol",
-      "total_preprints": 1298,
+      "total_preprints": 1309,
       "mature_preprints": 1031,
       "mature_pub_rate_pct": 63.2,
       "median_authors": 7.0
     },
     {
       "institution": "Harvard University",
-      "total_preprints": 1224,
+      "total_preprints": 1236,
       "mature_preprints": 958,
       "mature_pub_rate_pct": 65.6,
       "median_authors": 5.0
     },
     {
       "institution": "University of California, San Francisco",
-      "total_preprints": 1191,
+      "total_preprints": 1201,
       "mature_preprints": 877,
       "mature_pub_rate_pct": 61.2,
       "median_authors": 8.0
     },
     {
-      "institution": "Massachusetts Institute of Technology",
-      "total_preprints": 1157,
-      "mature_preprints": 868,
-      "mature_pub_rate_pct": 63.7,
-      "median_authors": 5.0
-    },
-    {
       "institution": "University of Wisconsin-Madison",
-      "total_preprints": 1156,
+      "total_preprints": 1168,
       "mature_preprints": 817,
       "mature_pub_rate_pct": 60.2,
       "median_authors": 6.0
     },
     {
-      "institution": "Harvard Medical School",
-      "total_preprints": 1126,
-      "mature_preprints": 837,
-      "mature_pub_rate_pct": 65.8,
-      "median_authors": 7.0
+      "institution": "Massachusetts Institute of Technology",
+      "total_preprints": 1166,
+      "mature_preprints": 868,
+      "mature_pub_rate_pct": 63.7,
+      "median_authors": 5.0
     },
     {
       "institution": "King's College London",
-      "total_preprints": 1125,
+      "total_preprints": 1140,
       "mature_preprints": 827,
       "mature_pub_rate_pct": 64.7,
       "median_authors": 8.0
     },
     {
       "institution": "Northwestern University",
-      "total_preprints": 1122,
+      "total_preprints": 1131,
       "mature_preprints": 846,
       "mature_pub_rate_pct": 65.0,
       "median_authors": 6.0
     },
     {
+      "institution": "Harvard Medical School",
+      "total_preprints": 1130,
+      "mature_preprints": 837,
+      "mature_pub_rate_pct": 65.8,
+      "median_authors": 7.0
+    },
+    {
       "institution": "University of Chicago",
-      "total_preprints": 1098,
+      "total_preprints": 1108,
       "mature_preprints": 810,
       "mature_pub_rate_pct": 65.4,
       "median_authors": 5.0
     },
     {
       "institution": "Icahn School of Medicine at Mount Sinai",
-      "total_preprints": 1096,
+      "total_preprints": 1108,
       "mature_preprints": 816,
       "mature_pub_rate_pct": 57.8,
       "median_authors": 9.0
@@ -18935,44 +18940,44 @@
       "2026": {
         "biorxiv": {
           "kpi": {
-            "trial_linked_dois": 37,
+            "trial_linked_dois": 39,
             "published_trial_dois": 2,
-            "total_links": 39,
-            "unique_trials": 39,
-            "enriched_nct_trials": 35,
-            "trials_with_results": 7,
-            "total_enrollment": 6882
+            "total_links": 43,
+            "unique_trials": 42,
+            "enriched_nct_trials": 38,
+            "trials_with_results": 8,
+            "total_enrollment": 7097
           },
           "registries": {
-            "ClinicalTrials.gov": 35,
+            "ClinicalTrials.gov": 39,
             "ISRCTN": 3,
             "ANZCTR": 1
           },
           "phases": {
             "Not Applicable / Non-Drug": 14,
-            "Phase 1": 7,
-            "Phase 2": 5,
+            "Phase 1": 9,
+            "Phase 2": 6,
             "Phase 3": 4,
             "Phase 1/Phase 2": 3,
             "EARLY_Phase 1": 2
           },
           "statuses": {
-            "COMPLETED": 18,
-            "RECRUITING": 7,
+            "COMPLETED": 20,
+            "RECRUITING": 8,
             "ACTIVE_NOT_RECRUITING": 6,
             "UNKNOWN": 3,
             "TERMINATED": 1
           },
           "sponsor_classes": {
             "OTHER": 22,
-            "INDUSTRY": 8,
+            "INDUSTRY": 11,
             "OTHER_GOV": 2,
             "FED": 2,
             "NETWORK": 1
           },
           "categories": {
             "Cancer Biology": 13,
-            "Neuroscience": 6,
+            "Neuroscience": 7,
             "Physiology": 4,
             "Bioinformatics": 3,
             "Pharmacology And Toxicology": 2,
@@ -18981,7 +18986,8 @@
             "Immunology": 2,
             "Systems Biology": 1,
             "Biophysics": 1,
-            "Biochemistry": 1
+            "Biochemistry": 1,
+            "Molecular Biology": 1
           },
           "conditions": {
             "Glioblastoma": 3,
@@ -18991,6 +18997,8 @@
             "Metastatic Prostate Cancer": 2,
             "Recurrent Plasma Cell Myeloma": 2,
             "Refractory Plasma Cell Myeloma": 2,
+            "Idiopathic Pulmonary Fibrosis (IPF)": 2,
+            "Idiopathic Pulmonary Fibrosis": 2,
             "Pancreatic Ductal Adenocarcinoma (PDAC)": 1,
             "Solid Tumours": 1,
             "Sarcoma": 1,
@@ -19021,30 +19029,28 @@
             "Healthy Volunteer Study": 1,
             "Multiple Myeloma": 1,
             "Melanoma Stage IV": 1,
-            "Prostate Cancer": 1,
-            "Glioblastoma Multiforme": 1,
-            "GBM": 1
+            "Prostate Cancer": 1
           }
         },
         "medrxiv": {
           "kpi": {
-            "trial_linked_dois": 483,
+            "trial_linked_dois": 521,
             "published_trial_dois": 66,
-            "total_links": 511,
-            "unique_trials": 492,
-            "enriched_nct_trials": 431,
-            "trials_with_results": 66,
-            "total_enrollment": 21411224
+            "total_links": 551,
+            "unique_trials": 527,
+            "enriched_nct_trials": 436,
+            "trials_with_results": 67,
+            "total_enrollment": 21425984
           },
           "registries": {
-            "ClinicalTrials.gov": 447,
-            "ISRCTN": 27,
-            "ChiCTR": 23,
+            "ClinicalTrials.gov": 484,
+            "ISRCTN": 29,
+            "ChiCTR": 24,
             "ANZCTR": 13,
             "EudraCT": 1
           },
           "phases": {
-            "Not Applicable / Non-Drug": 313,
+            "Not Applicable / Non-Drug": 318,
             "Phase 2": 40,
             "Phase 3": 27,
             "Phase 1": 19,
@@ -19054,61 +19060,61 @@
             "Phase 2/Phase 3": 4
           },
           "statuses": {
-            "COMPLETED": 231,
+            "COMPLETED": 234,
             "RECRUITING": 75,
-            "ACTIVE_NOT_RECRUITING": 52,
-            "UNKNOWN": 41,
+            "ACTIVE_NOT_RECRUITING": 53,
+            "UNKNOWN": 42,
             "NOT_YET_RECRUITING": 14,
             "TERMINATED": 10,
             "ENROLLING_BY_INVITATION": 8
           },
           "sponsor_classes": {
-            "OTHER": 356,
-            "INDUSTRY": 55,
+            "OTHER": 360,
+            "INDUSTRY": 56,
             "OTHER_GOV": 11,
             "NIH": 7,
             "FED": 2
           },
           "categories": {
-            "Psychiatry And Clinical Psychology": 51,
-            "Neurology": 49,
-            "Infectious Diseases": 44,
-            "Public And Global Health": 40,
-            "Oncology": 36,
+            "Psychiatry And Clinical Psychology": 56,
+            "Neurology": 52,
+            "Infectious Diseases": 47,
+            "Public And Global Health": 41,
+            "Oncology": 37,
             "Cardiovascular Medicine": 34,
-            "Nutrition": 22,
-            "Rehabilitation Medicine And Physical Therapy": 22,
-            "Endocrinology": 16,
+            "Nutrition": 27,
+            "Rehabilitation Medicine And Physical Therapy": 26,
+            "Endocrinology": 17,
             "Pediatrics": 11,
-            "Geriatric Medicine": 9,
+            "Geriatric Medicine": 10,
+            "Epidemiology": 10,
             "Obstetrics And Gynecology": 9,
+            "Health Systems And Quality Improvement": 8,
             "Hiv Aids": 8,
             "Genetic And Genomic Medicine": 8,
-            "Epidemiology": 8,
+            "Intensive Care And Critical Care Medicine": 8,
             "Anesthesia": 8,
             "Radiology And Imaging": 7,
-            "Health Systems And Quality Improvement": 7,
+            "Respiratory Medicine": 7,
             "Sexual And Reproductive Health": 7,
+            "Pharmacology And Therapeutics": 7,
             "Health Informatics": 7,
             "Gastroenterology": 6,
             "Emergency Medicine": 6,
-            "Pharmacology And Therapeutics": 6,
             "Surgery": 6,
-            "Respiratory Medicine": 5,
+            "Ophthalmology": 6,
             "Occupational And Environmental Health": 5,
             "Sports Medicine": 5,
-            "Intensive Care And Critical Care Medicine": 5,
             "Urology": 4,
             "Dermatology": 4,
             "Addiction Medicine": 3,
             "Pain Medicine": 3,
+            "Allergy And Immunology": 3,
             "Primary Care Research": 3,
             "Forensic Medicine": 2,
             "Nephrology": 2,
             "Health Economics": 2,
             "Hematology": 2,
-            "Ophthalmology": 2,
-            "Allergy And Immunology": 2,
             "Transplantation": 1,
             "Dentistry And Oral Medicine": 1,
             "Palliative Medicine": 1,
@@ -19138,6 +19144,7 @@
             "Coronary Heart Disease": 4,
             "Mild Cognitive Impairment": 4,
             "Tuberculosis": 4,
+            "Child Development": 4,
             "Treatment Resistant Depression": 3,
             "Sepsis": 3,
             "Malaria,Falciparum": 3,
@@ -19148,6 +19155,7 @@
             "Spinal Cord Injuries": 3,
             "HIV Infections": 3,
             "Schizophrenia": 3,
+            "Diarrhea": 3,
             "Sleep": 3,
             "Pneumonia": 3,
             "Borderline Personality Disorder": 3,
@@ -19155,14 +19163,80 @@
             "Long Covid-19": 3,
             "Frailty": 3,
             "Acute Ischemic Stroke": 3,
-            "Influenza": 3,
-            "Pneumococcal Disease": 2,
-            "Cervical Cancer": 2
+            "Influenza": 3
           }
         }
       }
     },
     "featured_trials": [
+      {
+        "preprint_doi": "10.64898/2026.11.06.764626",
+        "doi_link": "https://doi.org/10.64898/2026.11.06.764626",
+        "title": "Modelling vortex interactions reveals distinct patterns of brain reconfiguration following psilocybin and escitalopram",
+        "server": "biorxiv",
+        "year": 2026,
+        "category": "Neuroscience",
+        "is_published": false,
+        "published_doi": null,
+        "trial_id": "NCT03429075",
+        "phase": "Phase 2",
+        "status": "COMPLETED",
+        "sponsor": "Imperial College London",
+        "sponsor_class": "OTHER",
+        "enrollment": 59,
+        "has_results": true
+      },
+      {
+        "preprint_doi": "10.64898/2026.11.13.766540",
+        "doi_link": "https://doi.org/10.64898/2026.11.13.766540",
+        "title": "From CSP7 to CSP5: Development of a soluble, truncated congener for the treatment of obstructive and restrictive lung diseases.",
+        "server": "biorxiv",
+        "year": 2026,
+        "category": "Molecular Biology",
+        "is_published": false,
+        "published_doi": null,
+        "trial_id": "NCT05954988",
+        "phase": "Phase 1",
+        "status": "COMPLETED",
+        "sponsor": "Rein Therapeutics",
+        "sponsor_class": "INDUSTRY",
+        "enrollment": 24,
+        "has_results": true
+      },
+      {
+        "preprint_doi": "10.64898/2026.11.03.26367168",
+        "doi_link": "https://doi.org/10.64898/2026.11.03.26367168",
+        "title": "Cross-reactive antibody and functional T-cell responses to Bundibugyo virus induced by Zaire ebolavirus vaccination and infection",
+        "server": "medrxiv",
+        "year": 2026,
+        "category": "Infectious Diseases",
+        "is_published": false,
+        "published_doi": null,
+        "trial_id": "NCT02876328",
+        "phase": "Phase 2",
+        "status": "COMPLETED",
+        "sponsor": "National Institute of Allergy and Infectious Diseases (NIAID",
+        "sponsor_class": "NIH",
+        "enrollment": 4789,
+        "has_results": true
+      },
+      {
+        "preprint_doi": "10.64898/2026.11.01.26366948",
+        "doi_link": "https://doi.org/10.64898/2026.11.01.26366948",
+        "title": "Therapeutic acute intermittent hypoxia alters supraspinal neural control of lower limb movement in multiple sclerosis",
+        "server": "medrxiv",
+        "year": 2026,
+        "category": "Rehabilitation Medicine And Physical Therapy",
+        "is_published": false,
+        "published_doi": null,
+        "trial_id": "NCT05164705",
+        "phase": "Not Applicable",
+        "status": "COMPLETED",
+        "sponsor": "Northwestern University",
+        "sponsor_class": "OTHER",
+        "enrollment": 33,
+        "has_results": true
+      },
       {
         "preprint_doi": "10.64898/2026.10.28.26366744",
         "doi_link": "https://doi.org/10.64898/2026.10.28.26366744",
@@ -22493,74 +22567,6 @@
         "sponsor": "St. Joseph's Hospital and Medical Center, Phoenix",
         "sponsor_class": "OTHER",
         "enrollment": 27,
-        "has_results": true
-      },
-      {
-        "preprint_doi": "10.1101/2024.06.05.24308499",
-        "doi_link": "https://doi.org/10.1101/2024.06.05.24308499",
-        "title": "School-based caries prevention using silver diamine fluoride: A pragmatic randomized trial in low-income rural children",
-        "server": "medrxiv",
-        "year": 2024,
-        "category": "Dentistry And Oral Medicine",
-        "is_published": false,
-        "published_doi": null,
-        "trial_id": "NCT03448107",
-        "phase": "Not Applicable",
-        "status": "COMPLETED",
-        "sponsor": "NYU College of Dentistry",
-        "sponsor_class": "OTHER",
-        "enrollment": 3345,
-        "has_results": true
-      },
-      {
-        "preprint_doi": "10.1101/2024.06.04.24308436",
-        "doi_link": "https://doi.org/10.1101/2024.06.04.24308436",
-        "title": "Multisite Pragmatic Cluster-Randomized Controlled Trial of the CONCERN Early Warning System",
-        "server": "medrxiv",
-        "year": 2024,
-        "category": "Health Informatics",
-        "is_published": false,
-        "published_doi": null,
-        "trial_id": "NCT03911687",
-        "phase": "Not Applicable",
-        "status": "COMPLETED",
-        "sponsor": "Columbia University",
-        "sponsor_class": "OTHER",
-        "enrollment": 60893,
-        "has_results": true
-      },
-      {
-        "preprint_doi": "10.1101/2024.06.04.597465",
-        "doi_link": "https://doi.org/10.1101/2024.06.04.597465",
-        "title": "CD388: A universally protective Drug-Fc Conjugate that targets influenza virus neuraminidase",
-        "server": "biorxiv",
-        "year": 2024,
-        "category": "Microbiology",
-        "is_published": false,
-        "published_doi": null,
-        "trial_id": "NCT05285137",
-        "phase": "Phase 1",
-        "status": "COMPLETED",
-        "sponsor": "Cidara Therapeutics Inc., a subsidiary of Merck & Co., Inc. ",
-        "sponsor_class": "INDUSTRY",
-        "enrollment": 77,
-        "has_results": true
-      },
-      {
-        "preprint_doi": "10.1101/2024.06.04.597465",
-        "doi_link": "https://doi.org/10.1101/2024.06.04.597465",
-        "title": "CD388: A universally protective Drug-Fc Conjugate that targets influenza virus neuraminidase",
-        "server": "biorxiv",
-        "year": 2024,
-        "category": "Microbiology",
-        "is_published": false,
-        "published_doi": null,
-        "trial_id": "NCT05523089",
-        "phase": "Phase 2",
-        "status": "COMPLETED",
-        "sponsor": "Cidara Therapeutics Inc., a subsidiary of Merck & Co., Inc. ",
-        "sponsor_class": "INDUSTRY",
-        "enrollment": 59,
         "has_results": true
       }
     ],

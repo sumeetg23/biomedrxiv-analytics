@@ -30,7 +30,7 @@ jobs:
       - name: Run unit tests before data sync
         run: .venv/bin/pytest -v
 
-      - name: Run full sync, ETL, clinical trials enrichment, and quality gates
+      - name: Run full hybrid sync (Kaggle base + live bioRxiv/medRxiv API delta), ETL, trials & quality gates
         id: pipeline
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
@@ -38,6 +38,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           .venv/bin/python scripts/run_pipeline.py \
+            --source both \
             --enrich-nct \
             --use-gemini \
             --output-markdown logs/release_digest.md

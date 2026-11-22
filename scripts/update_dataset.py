@@ -21,6 +21,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from biomedrxiv.biorxiv_sync import sync_incremental_from_biorxiv_api
 from biomedrxiv.config import DEFAULT_KAGGLE_DATASET, ProjectPaths
 from biomedrxiv.scheduler import (
     DEFAULT_LAUNCHD_LABEL,
@@ -52,6 +53,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--dataset",
         default=DEFAULT_KAGGLE_DATASET,
         help=f"Kaggle dataset handle (default: {DEFAULT_KAGGLE_DATASET}).",
+    )
+    parser.add_argument(
+        "--source",
+        choices=["biorxiv-api", "kaggle", "both"],
+        default="biorxiv-api",
+        help="Update source (default: biorxiv-api to stay ahead of Kaggle).",
     )
     parser.add_argument("--hour", type=int, default=3, help="Scheduled hour (0-23, default: 3).")
     parser.add_argument("--minute", type=int, default=0, help="Scheduled minute (0-59, default: 0).")
@@ -119,15 +126,30 @@ def main(argv: list[str] | None = None) -> int:
     _setup_logging(paths.logs_dir / "updates.log")
     logger = logging.getLogger("biomedrxiv.update")
 
-    manager = DatasetVersionManager(paths=paths, dataset_handle=args.dataset)
-    result = manager.sync_from_kaggle(force_download=True, notes="automated update check")
-    summary = {
-        "status": result.status,
-        "version_id": result.version_id,
-        "content_sha256": result.content_sha256,
-        "checked_at_utc": result.checked_at_utc,
-        "diff": result.diff,
-    }
+    summary: dict[str, object] = {"source": args.source}
+    if args.source in {"kaggle", "both"} or not (paths.current_link / "biorxiv_medrxiv_preprints.csv").exists():
+        manager = DatasetVersionManager(paths=paths, dataset_handle=args.dataset)
+        result = manager.sync_from_kaggle(force_download=True, notes="automated Kaggle update check")
+        summary["kaggle"] = {
+            "status": result.status,
+            "version_id": result.version_id,
+            "content_sha256": result.content_sha256,
+            "checked_at_utc": result.checked_at_utc,
+            "diff": result.diff,
+        }
+
+    if args.source in {"biorxiv-api", "both"}:
+        inc = sync_incremental_from_biorxiv_api(paths)
+        summary["biorxiv_api"] = {
+            "window": f"{inc.start_date}..{inc.end_date}",
+            "fetched_records": inc.fetched_records,
+            "new_or_updated_records": inc.new_or_updated_records,
+            "pubs_harvested": inc.pubs_harvested,
+            "status": inc.update_result.status if inc.update_result else "unchanged",
+            "version_id": inc.update_result.version_id if inc.update_result else None,
+            "diff": inc.update_result.diff if inc.update_result else None,
+        }
+
     logger.info("Update run finished: %s", json.dumps(summary))
     return 0
 

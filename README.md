@@ -76,13 +76,17 @@ python3 -m venv .venv
 
 ---
 
-## 1. Downloading & Managing Dataset Versions
+## 1. Downloading & Updating Dataset Versions (Kaggle Base + Direct bioRxiv/medRxiv API)
 
-Every snapshot is stored immutably in `data/versions/<version_id>/` with a `manifest.json`, and `data/current` points atomically to the active version. Identical re-downloads do not duplicate disk space — they log a check timestamp in `data/registry.json`.
+Every snapshot is stored immutably in `data/versions/<version_id>/` with a `manifest.json`, and `data/current` points atomically to the active version. You can bootstrap from Kaggle once and then **stay ahead of Kaggle** by pulling incremental updates directly from the official bioRxiv & medRxiv REST APIs:
 
 ```bash
-# Download latest from Kaggle (creates a new version only if content changed)
-.venv/bin/python scripts/download_dataset.py sync --notes "Weekly refresh"
+# Bootstrap or sync from Kaggle
+.venv/bin/python scripts/download_dataset.py sync --notes "Kaggle base"
+
+# Pull new preprints + newly published journal links directly from bioRxiv/medRxiv APIs
+# (auto-detects active max posting date -> today, deduplicates, and creates a new version!)
+.venv/bin/python scripts/sync_biorxiv_api.py
 
 # List all stored versions and row counts
 .venv/bin/python scripts/download_dataset.py list
