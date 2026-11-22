@@ -1,4 +1,4 @@
-name: Scheduled Dataset Update Check
+name: Automated Dataset Update, Quality Gates & Release PR
 
 on:
   schedule:
@@ -6,8 +6,12 @@ on:
     - cron: "0 8 * * 0"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  update-dataset:
+  sync-validate-and-pr:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -23,17 +27,40 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install -r requirements.txt
 
-      - name: Sync Kaggle dataset and check for new version
+      - name: Run unit tests before data sync
+        run: .venv/bin/pytest -v
+
+      - name: Run full sync, ETL, clinical trials enrichment, and quality gates
+        id: pipeline
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          .venv/bin/python scripts/update_dataset.py
+          .venv/bin/python scripts/run_pipeline.py \
+            --enrich-nct \
+            --use-gemini \
+            --output-markdown logs/release_digest.md
 
-      - name: Upload updated registry & manifests
+      - name: Upload quality report & update logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dataset-registry
+          name: release-digest-and-logs
           path: |
+            logs/release_digest.md
             data/registry.json
-            logs/updates.log
+
+      - name: Open Pull Request if dashboard_data.json updated
+        if: success()
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "data: automated Bio&Med-Rxiv dataset refresh"
+          branch: "automated/dataset-refresh"
+          delete-branch: true
+          title: "Automated Dataset Refresh & Quality Gate Digest"
+          body-path: logs/release_digest.md
+          add-paths: |
+            web/data/dashboard_data.json
+          labels: |
+            automated-data-update

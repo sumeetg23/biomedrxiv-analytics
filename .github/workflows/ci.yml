@@ -1,0 +1,32 @@
+name: CI — Tests & Dashboard Contract Validation
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Run pytest suite
+        run: .venv/bin/pytest -v
+
+      - name: Validate committed web/data/dashboard_data.json contract
+        run: |
+          .venv/bin/python scripts/run_quality_gates.py \
+            --candidate-json web/data/dashboard_data.json

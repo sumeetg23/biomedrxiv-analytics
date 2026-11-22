@@ -31,6 +31,8 @@ Bio&Med-RxivDataset/
 │   ├── clinical_trials.py         # ClinicalTrials.gov v2 + Europe PMC + NIH iCite linkage
 │   ├── qa_engine.py               # Read-only DuckDB SQL + Gemini/Ollama tool-calling engine
 │   ├── qa_server.py               # Local FastAPI server exposing Q&A + SQL + search APIs
+│   ├── quality_gates.py           # Automated schema, reconciliation, privacy & drift gates
+│   ├── release_agent.py           # Deterministic + Gemini PR release digest & failure triage
 │   └── scheduler.py               # macOS LaunchAgent & cron generator
 ├── scripts/                       # Thin CLI entrypoints
 │   ├── download_dataset.py        # CLI: sync, list, diff, and switch dataset versions
@@ -38,11 +40,13 @@ Bio&Med-RxivDataset/
 │   ├── run_etl.py                 # Pure ETL: CSV -> Parquet -> web/data/dashboard_data.json
 │   ├── check_publications.py      # Multi-API peer-reviewed journal verification CLI
 │   ├── check_clinical_trials.py   # Direct trial registry + downstream NIH iCite CLI
-│   └── run_qa_app.py              # Local FastAPI + DuckDB + Gemini/Ollama Q&A launcher
+│   ├── run_qa_app.py              # Local FastAPI + DuckDB + Gemini/Ollama Q&A launcher
+│   ├── run_quality_gates.py       # Standalone data quality & contract validation CLI
+│   └── run_pipeline.py            # End-to-end sync -> ETL -> trials -> gates orchestrator
 ├── app/
 │   └── index.html                 # Local AI Analyst Chat + Direct DuckDB SQL UI
 ├── web/                           # Decoupled static web dashboard (GitHub Pages artifact)
-│   ├── index.html                 # Dashboard markup
+│   ├── index.html                 # Dashboard markup (6 tabs + year/server filters)
 │   ├── css/styles.css             # Responsive light/dark styling
 │   ├── js/dashboard.js            # Plotly.js visualization controller
 │   ├── data/dashboard_data.json   # Data contract produced by scripts/run_etl.py
@@ -52,8 +56,9 @@ Bio&Med-RxivDataset/
 │   └── analysis_plan.md           # Full analysis plan, research questions & viz blueprint
 ├── tests/                         # Unit tests (pytest)
 ├── .github/workflows/
+│   ├── ci.yml                     # Runs pytest + dashboard JSON contract gate on push/PR
 │   ├── deploy-pages.yml           # Auto-deploys web/ to GitHub Pages on push to main
-│   └── update-dataset.yml         # Optional weekly GitHub Actions update check
+│   └── update-dataset.yml         # Weekly Kaggle sync -> gates -> AI digest -> auto-PR
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
@@ -217,3 +222,26 @@ export GEMINI_API_KEY="your-api-key"
 .venv/bin/python scripts/run_qa_app.py --ollama-model llama3.2 --port 8000
 # Open http://127.0.0.1:8000/ (Q&A + SQL) or http://127.0.0.1:8000/dashboard/
 ```
+
+---
+
+## 8. Automated Data Quality Gates & Release-Digest PR Workflow
+
+Every automated update passes through deterministic data-quality gates before touching `main`:
+
+- **Gates checked (`scripts/run_quality_gates.py`):** required Parquet schema, 100% DOI uniqueness & non-nullity, server domain validity (`{biorxiv, medrxiv}`), date bounds, `by_year` cube reconciliation, zero local filesystem path leaks, JSON size guard, and non-shrinkage regression check (`<= 2%` drop vs. baseline).
+- **Agent-Assisted PR Workflow (`.github/workflows/update-dataset.yml`):** Weekly (or via `workflow_dispatch`), runs `pytest` → syncs Kaggle → runs ETL + ClinicalTrials.gov enrichment → runs quality gates → generates a deterministic + optional Gemini (`GEMINI_API_KEY`) executive changelog → opens a **Pull Request** updating `web/data/dashboard_data.json` for your review. Merging the PR automatically triggers `deploy-pages.yml`.
+- **CI Validation (`.github/workflows/ci.yml`):** Runs `pytest` + JSON contract validation on every push and PR.
+
+```bash
+# Run quality gates directly against active Parquet & web/data/dashboard_data.json
+.venv/bin/python scripts/run_quality_gates.py --output-markdown logs/release_digest.md
+
+# Run the full local end-to-end orchestrator (skip Kaggle download to re-validate locally)
+.venv/bin/python scripts/run_pipeline.py --skip-download --skip-parquet --use-gemini
+```
+
+### GitHub Repository Secrets (for Automated Weekly PRs)
+Configure these in **Settings → Secrets and variables → Actions** on GitHub:
+- `KAGGLE_USERNAME` & `KAGGLE_KEY` — required for weekly Kaggle syncs.
+- `GEMINI_API_KEY` *(optional)* — enables AI executive release summaries and automated failure triage in PR descriptions (falls back gracefully to deterministic scorecards if unset).
