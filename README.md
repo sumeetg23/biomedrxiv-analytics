@@ -28,12 +28,14 @@ Bio&Med-RxivDataset/
 │   ├── preprocessing.py           # Data cleaning & DOI-level deduplication
 │   ├── etl.py                     # Chunked Parquet materialization & JSON contract export
 │   ├── publication_checker.py     # bioRxiv/medRxiv pubs + Crossref + OpenAlex + SQLite cache
+│   ├── clinical_trials.py         # ClinicalTrials.gov v2 + Europe PMC + NIH iCite linkage
 │   └── scheduler.py               # macOS LaunchAgent & cron generator
 ├── scripts/                       # Thin ETL CLI entrypoints
 │   ├── download_dataset.py        # CLI: sync, list, diff, and switch dataset versions
 │   ├── update_dataset.py          # Automated updater + macOS launchd / cron setup
 │   ├── run_etl.py                 # Pure ETL: CSV -> Parquet -> web/data/dashboard_data.json
-│   └── check_publications.py      # Multi-API peer-reviewed journal verification CLI
+│   ├── check_publications.py      # Multi-API peer-reviewed journal verification CLI
+│   └── check_clinical_trials.py   # Direct trial registry + downstream NIH iCite CLI
 ├── web/                           # Decoupled static web dashboard (GitHub Pages artifact)
 │   ├── index.html                 # Dashboard markup
 │   ├── css/styles.css             # Responsive light/dark styling
@@ -164,4 +166,29 @@ gh api -X POST repos/<your-username>/<your-repo>/pages -f build_type=workflow
 .venv/bin/python scripts/check_publications.py verify \
   --server medrxiv --since 2024-01-01 --limit 200 \
   --crossref-fallback --mailto your.email@example.com
+```
+
+---
+
+## 6. Linking Clinical Trials & Downstream Translational Impact
+
+`scripts/check_clinical_trials.py` links preprints and publications to clinical trials in two ways (cached in `data/cache/clinical_trials.sqlite`):
+
+1. **Direct Trial Registry Extraction & ClinicalTrials.gov API v2 Enrichment** — extracts `NCT`, `ISRCTN`, `ChiCTR`, `ACTRN`, and `EudraCT` IDs from titles/abstracts and batch-enriches `NCT` studies (phase, status, sponsor, enrollment, conditions, posted results).
+2. **Downstream Translational Linkage (NIH iCite)** — resolves peer-reviewed DOIs to PubMed PMIDs via Europe PMC and queries NIH iCite (`cited_by_clin`, Approximate Potential to Translate `apt`, and `rcr`) to identify papers that informed subsequent clinical trials.
+
+> **API Terms Note:** Please review the terms at [clinicaltrials.gov](https://clinicaltrials.gov/) and [NIH iCite](https://icite.od.nih.gov/).
+
+```bash
+# 1. Extract all clinical trial IDs offline into data/processed/preprint_trial_links.parquet
+.venv/bin/python scripts/check_clinical_trials.py extract
+
+# 2. Batch-enrich NCT trials via ClinicalTrials.gov API v2 (50 NCTs per request)
+.venv/bin/python scripts/check_clinical_trials.py enrich-nct
+
+# 3. Trace downstream clinical-trial citations via Europe PMC + NIH iCite
+.venv/bin/python scripts/check_clinical_trials.py trace-downstream --limit 500
+
+# 4. Refresh the web dashboard JSON contract with Clinical Trials Tab 6
+.venv/bin/python scripts/run_etl.py --skip-parquet
 ```

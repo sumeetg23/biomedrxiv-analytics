@@ -823,6 +823,246 @@ function renderOpenScience(agg) {
 }
 
 let currentInstList = [];
+let currentTrialRows = [];
+
+function renderClinicalTrials() {
+  const ct = DATA.clinical_trials;
+  const callout = document.getElementById("ct-callout");
+  if (!ct || !ct.by_year) {
+    callout.innerHTML =
+      "<strong>Clinical trials data not yet extracted.</strong> Run <code>.venv/bin/python scripts/check_clinical_trials.py extract</code> followed by <code>scripts/run_etl.py --skip-parquet</code>.";
+    document.getElementById("ct-kpi-grid").innerHTML = "";
+    return;
+  }
+
+  const c = themeColors();
+  const servers = selectedServers();
+  let linkedDois = 0;
+  let pubTrialDois = 0;
+  let uniqueTrials = 0;
+  let enrichedNct = 0;
+  let withResults = 0;
+  let totalEnroll = 0;
+  const phases = {};
+  const statuses = {};
+  const sponsors = {};
+  const conditions = {};
+  const registries = {};
+
+  const ctYears = (ct.years || []).filter((y) => y >= startYear && y <= endYear);
+  const yrBio = [];
+  const yrMed = [];
+
+  for (const yr of ctYears) {
+    const blk = ct.by_year[String(yr)] || {};
+    yrBio.push(blk.biorxiv ? blk.biorxiv.kpi.trial_linked_dois : 0);
+    yrMed.push(blk.medrxiv ? blk.medrxiv.kpi.trial_linked_dois : 0);
+
+    for (const srv of servers) {
+      const s = blk[srv];
+      if (!s) continue;
+      linkedDois += s.kpi.trial_linked_dois;
+      pubTrialDois += s.kpi.published_trial_dois;
+      uniqueTrials += s.kpi.unique_trials;
+      enrichedNct += s.kpi.enriched_nct_trials;
+      withResults += s.kpi.trials_with_results;
+      totalEnroll += s.kpi.total_enrollment;
+
+      for (const [k, v] of Object.entries(s.phases || {})) phases[k] = (phases[k] || 0) + v;
+      for (const [k, v] of Object.entries(s.statuses || {})) statuses[k] = (statuses[k] || 0) + v;
+      for (const [k, v] of Object.entries(s.sponsor_classes || {})) sponsors[k] = (sponsors[k] || 0) + v;
+      for (const [k, v] of Object.entries(s.conditions || {})) conditions[k] = (conditions[k] || 0) + v;
+      for (const [k, v] of Object.entries(s.registries || {})) registries[k] = (registries[k] || 0) + v;
+    }
+  }
+
+  const pubRate = linkedDois > 0 ? +((pubTrialDois / linkedDois) * 100).toFixed(1) : 0;
+  const regSummary = Object.entries(registries)
+    .sort((a, b) => b[1] - a[1])
+    .map(([r, n]) => `${r}: <strong>${fmtInt(n)}</strong>`)
+    .join(" &bull; ");
+  callout.innerHTML =
+    `<strong>Clinical Trial Registry Links (${yearRangeLabel()}):</strong> ${regSummary || "No trial links in selected range."} ` +
+    `&nbsp;|&nbsp; Enriched via ClinicalTrials.gov API v2 &amp; NIH iCite.`;
+
+  const industryShare =
+    enrichedNct > 0 ? +(((sponsors.INDUSTRY || 0) / enrichedNct) * 100).toFixed(1) : 0;
+  const ctCards = [
+    { label: `Trial-Linked Preprints (${yearRangeLabel()})`, value: fmtInt(linkedDois), sub: `${fmtInt(uniqueTrials)} trial mentions` },
+    { label: "Peer-Reviewed Rate", value: fmtPct(pubRate), sub: `${fmtInt(pubTrialDois)} published DOIs` },
+    { label: "Enriched NCT Trials", value: fmtInt(enrichedNct), sub: `${fmtInt(withResults)} with posted results` },
+    { label: "Industry-Sponsored", value: fmtPct(industryShare), sub: `${fmtInt(sponsors.INDUSTRY || 0)} INDUSTRY vs ${fmtInt(sponsors.OTHER || 0)} Academic/Other` },
+    { label: "Combined Enrollment", value: fmtInt(totalEnroll), sub: "Across enriched NCT trials" },
+  ];
+  document.getElementById("ct-kpi-grid").innerHTML = ctCards
+    .map(
+      (x) => `<div class="kpi-card">
+        <div class="kpi-label">${x.label}</div>
+        <div class="kpi-value">${x.value}</div>
+        <div class="kpi-sub">${x.sub}</div>
+      </div>`
+    )
+    .join("");
+
+  // 1. Trial-linked preprints by year
+  const yrTraces = [];
+  if (currentServer === "all" || currentServer === "biorxiv") {
+    yrTraces.push({ x: ctYears, y: yrBio, name: "bioRxiv", type: "bar", marker: { color: c.biorxiv } });
+  }
+  if (currentServer === "all" || currentServer === "medrxiv") {
+    yrTraces.push({ x: ctYears, y: yrMed, name: "medRxiv", type: "bar", marker: { color: c.medrxiv } });
+  }
+  Plotly.newPlot(
+    "chart-ct-yearly",
+    yrTraces,
+    baseLayout({
+      barmode: "stack",
+      xaxis: { dtick: 1, title: `Posting Year (${yearRangeLabel()})`, gridcolor: c.grid },
+      yaxis: { title: "Trial-Linked Preprints", gridcolor: c.grid },
+    }),
+    PLOT_CFG
+  );
+
+  // 2. Phases bar chart
+  const phaseEntries = Object.entries(phases).sort((a, b) => a[1] - b[1]);
+  Plotly.newPlot(
+    "chart-ct-phases",
+    [
+      {
+        type: "bar",
+        orientation: "h",
+        y: phaseEntries.map(([k]) => k),
+        x: phaseEntries.map(([, v]) => v),
+        marker: { color: c.medrxiv },
+        hovertemplate: "<b>%{y}</b><br>Trials: %{x:,}<extra></extra>",
+      },
+    ],
+    baseLayout({
+      margin: { l: 175, r: 20, t: 20, b: 48 },
+      xaxis: { title: "Enriched NCT Studies", gridcolor: c.grid },
+      yaxis: { automargin: true },
+    }),
+    PLOT_CFG
+  );
+
+  // 3. Trial Status bar chart
+  const statusEntries = Object.entries(statuses).sort((a, b) => a[1] - b[1]).slice(-10);
+  Plotly.newPlot(
+    "chart-ct-status",
+    [
+      {
+        type: "bar",
+        orientation: "h",
+        y: statusEntries.map(([k]) => k.replace(/_/g, " ")),
+        x: statusEntries.map(([, v]) => v),
+        marker: { color: c.biorxiv },
+        hovertemplate: "<b>%{y}</b><br>Trials: %{x:,}<extra></extra>",
+      },
+    ],
+    baseLayout({
+      margin: { l: 185, r: 20, t: 20, b: 48 },
+      xaxis: { title: "Enriched NCT Studies", gridcolor: c.grid },
+      yaxis: { automargin: true },
+    }),
+    PLOT_CFG
+  );
+
+  // 4. Top Clinical Conditions
+  const condEntries = Object.entries(conditions).sort((a, b) => b[1] - a[1]).slice(0, 15).reverse();
+  Plotly.newPlot(
+    "chart-ct-conditions",
+    [
+      {
+        type: "bar",
+        orientation: "h",
+        y: condEntries.map(([k]) => (k.length > 36 ? k.slice(0, 34) + "…" : k)),
+        x: condEntries.map(([, v]) => v),
+        marker: { color: c.accent3 },
+        customdata: condEntries.map(([k]) => k),
+        hovertemplate: "<b>%{customdata}</b><br>Linked Trials: %{x:,}<extra></extra>",
+      },
+    ],
+    baseLayout({
+      margin: { l: 210, r: 20, t: 20, b: 48 },
+      xaxis: { title: "Linked Trials", gridcolor: c.grid },
+      yaxis: { automargin: true },
+    }),
+    PLOT_CFG
+  );
+
+  // 5. Downstream NIH iCite translational impact
+  const ds = ct.downstream_icite || {};
+  const dsBox = document.getElementById("ct-downstream-summary");
+  const dsTbody = document.getElementById("ct-downstream-tbody");
+  if (!ds.evaluated_published_dois) {
+    dsBox.innerHTML =
+      "No NIH iCite downstream records cached yet. Run <code>.venv/bin/python scripts/check_clinical_trials.py trace-downstream --limit 500</code> then <code>scripts/run_etl.py --skip-parquet</code> to trace basic-science papers cited by later clinical trials.";
+    dsTbody.innerHTML = "";
+  } else {
+    dsBox.innerHTML =
+      `Evaluated <strong>${fmtInt(ds.evaluated_published_dois)}</strong> published papers (<strong>${fmtInt(ds.resolved_pmids)}</strong> PubMed PMIDs resolved): ` +
+      `<strong>${fmtInt(ds.cited_by_clinical_trials_count)}</strong> (<strong>${ds.cited_by_clinical_trials_pct}%</strong>) have already been cited by clinical trials/guidelines! ` +
+      `Median NIH APT (Approximate Potential to Translate): <strong>${ds.median_apt ?? "—"}</strong> (${fmtInt(ds.high_apt_count_ge_0_5)} papers with APT &ge; 0.50).`;
+
+    const dsRows = (ds.top_translational_papers || []).filter((r) => {
+      const okSrv = currentServer === "all" || r.server === currentServer;
+      const okYr = !r.year || (r.year >= startYear && r.year <= endYear);
+      return okSrv && okYr;
+    });
+    dsTbody.innerHTML = dsRows
+      .slice(0, 25)
+      .map(
+        (r) => `<tr>
+          <td><a href="https://doi.org/${r.published_doi}" target="_blank" rel="noopener">${r.title || r.published_doi}</a></td>
+          <td>${r.category || "—"}</td>
+          <td class="num">${r.year ?? "—"}</td>
+          <td class="num"><strong>${fmtInt(r.cited_by_clin_count)}</strong></td>
+          <td class="num">${r.apt != null ? r.apt.toFixed(2) : "—"}</td>
+          <td class="num">${r.rcr != null ? r.rcr.toFixed(2) : "—"}</td>
+        </tr>`
+      )
+      .join("");
+  }
+
+  // 6. Featured trials table (filtered by year & server)
+  currentTrialRows = (ct.featured_trials || []).filter((r) => {
+    const okSrv = currentServer === "all" || r.server === currentServer;
+    const okYr = !r.year || (r.year >= startYear && r.year <= endYear);
+    return okSrv && okYr;
+  });
+  renderTrialsTable(document.getElementById("ct-search").value);
+}
+
+function renderTrialsTable(query) {
+  const q = (query || "").trim().toLowerCase();
+  const rows = currentTrialRows.filter(
+    (r) =>
+      !q ||
+      r.trial_id.toLowerCase().includes(q) ||
+      r.title.toLowerCase().includes(q) ||
+      r.sponsor.toLowerCase().includes(q) ||
+      r.phase.toLowerCase().includes(q) ||
+      r.status.toLowerCase().includes(q)
+  );
+  document.getElementById("ct-tbody").innerHTML = rows
+    .slice(0, 60)
+    .map(
+      (r) => `<tr>
+        <td><a href="https://clinicaltrials.gov/study/${r.trial_id}" target="_blank" rel="noopener"><strong>${r.trial_id}</strong></a></td>
+        <td><a href="${r.doi_link}" target="_blank" rel="noopener">${r.title}</a></td>
+        <td>${r.phase}</td>
+        <td>${r.status.replace(/_/g, " ")}</td>
+        <td>${r.sponsor || "—"}</td>
+        <td class="num">${r.enrollment != null ? fmtInt(r.enrollment) : "—"}</td>
+        <td>${
+          r.is_published
+            ? `<a class="badge badge-ok" href="https://doi.org/${r.published_doi}" target="_blank" rel="noopener">Published</a>`
+            : `<span class="badge badge-muted">Preprint</span>`
+        }</td>
+      </tr>`
+    )
+    .join("");
+}
 
 function renderInstitutions(agg) {
   const c = themeColors();
@@ -959,6 +1199,7 @@ function renderActiveTab() {
   else if (currentTab === "frontiers") renderFrontiers();
   else if (currentTab === "open-science") renderOpenScience(agg);
   else if (currentTab === "institutions") renderInstitutions(agg);
+  else if (currentTab === "clinical-trials") renderClinicalTrials();
 }
 
 async function init() {
@@ -1041,6 +1282,10 @@ async function init() {
 
   document.getElementById("inst-search").addEventListener("input", (e) => {
     renderInstTable(e.target.value);
+  });
+
+  document.getElementById("ct-search").addEventListener("input", (e) => {
+    renderTrialsTable(e.target.value);
   });
 
   document.getElementById("theme-toggle").addEventListener("click", (e) => {

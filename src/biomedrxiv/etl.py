@@ -23,6 +23,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from biomedrxiv.clinical_trials import build_clinical_trials_payload
 from biomedrxiv.config import ProjectPaths
 from biomedrxiv.preprocessing import DEFAULT_CSV_NAME, clean_preprints_dataframe
 
@@ -939,6 +940,7 @@ def build_analytics_payload(
         "team_vs_pub": team_vs_pub,
         "type_bias": type_bias,
         "top_institutions": top_institutions,
+        "clinical_trials": build_clinical_trials_payload(paths),
     }
 
 

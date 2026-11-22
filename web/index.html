@@ -42,6 +42,7 @@
     <button class="tab-btn" data-tab="frontiers">3. Research Frontiers (NLP)</button>
     <button class="tab-btn" data-tab="open-science">4. Open Science &amp; Teams</button>
     <button class="tab-btn" data-tab="institutions">5. Institutions &amp; Audit</button>
+    <button class="tab-btn" data-tab="clinical-trials">6. Clinical Trials</button>
   </nav>
 
   <main class="container">
@@ -243,6 +244,108 @@
       <div class="card">
         <h2>Data Quality &amp; Reproducibility Provenance</h2>
         <div id="provenance-grid" class="kpi-grid provenance-grid"></div>
+      </div>
+    </section>
+
+    <!-- TAB 6: CLINICAL TRIALS -->
+    <section class="tab-panel" id="tab-clinical-trials">
+      <div class="callout" id="ct-callout"></div>
+
+      <section class="kpi-grid" id="ct-kpi-grid"></section>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Trial-Linked Preprints Over Time</h2>
+              <p class="subtitle">Unique preprints citing a registered clinical trial ID (NCT, ISRCTN, ChiCTR, ACTRN, EudraCT).</p>
+            </div>
+          </div>
+          <div id="chart-ct-yearly" class="plot"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Clinical Trial Phases (ClinicalTrials.gov)</h2>
+              <p class="subtitle">Distribution across enriched NCT trials in the active year &amp; server window.</p>
+            </div>
+          </div>
+          <div id="chart-ct-phases" class="plot"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Trial Status &amp; Sponsor Breakdown</h2>
+              <p class="subtitle">Recruitment/completion status across enriched ClinicalTrials.gov studies.</p>
+            </div>
+          </div>
+          <div id="chart-ct-status" class="plot"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Top Clinical Conditions / Therapeutic Areas</h2>
+              <p class="subtitle">Most frequently studied conditions among trial-linked preprints.</p>
+            </div>
+          </div>
+          <div id="chart-ct-conditions" class="plot"></div>
+        </div>
+      </div>
+
+      <div class="card" id="ct-downstream-card">
+        <div class="card-header">
+          <div>
+            <h2>Downstream Translational Impact (NIH iCite)</h2>
+            <p class="subtitle">Peer-reviewed publications cited by subsequent clinical trials/guidelines (<code>cited_by_clin</code> &amp; NIH APT score).</p>
+          </div>
+        </div>
+        <div id="ct-downstream-summary" class="callout" style="margin-bottom:0.75rem;"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Publication Title</th>
+                <th>Category</th>
+                <th class="num">Year</th>
+                <th class="num">Clinical Citations</th>
+                <th class="num">NIH APT</th>
+                <th class="num">RCR</th>
+              </tr>
+            </thead>
+            <tbody id="ct-downstream-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Trial-Linked Preprints Explorer</h2>
+            <p class="subtitle">Featured ClinicalTrials.gov-linked preprints filtered by active year range and server.</p>
+          </div>
+          <input type="search" id="ct-search" class="search-input" placeholder="Search title, NCT ID, sponsor, phase..." />
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Trial ID</th>
+                <th>Preprint Title</th>
+                <th>Phase</th>
+                <th>Status</th>
+                <th>Sponsor</th>
+                <th class="num">Enrollment</th>
+                <th>Peer-Reviewed</th>
+              </tr>
+            </thead>
+            <tbody id="ct-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </section>
   </main>
