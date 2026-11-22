@@ -1,0 +1,39 @@
+name: Scheduled Dataset Update Check
+
+on:
+  schedule:
+    # Weekly on Sundays at 08:00 UTC
+    - cron: "0 8 * * 0"
+  workflow_dispatch:
+
+jobs:
+  update-dataset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements.txt
+
+      - name: Sync Kaggle dataset and check for new version
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          .venv/bin/python scripts/update_dataset.py
+
+      - name: Upload updated registry & manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataset-registry
+          path: |
+            data/registry.json
+            logs/updates.log

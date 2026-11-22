@@ -1,0 +1,34 @@
+# Virtual environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Data files (large raw/processed snapshots & machine-local configs)
+data/versions/
+data/current
+data/processed/
+data/cache/
+data/registry.json
+config/*.plist
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs & runtime artifacts
+logs/
+*.log
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+*.ipynb_checkpoints/
+
+# Secrets / credentials
+.env
+kaggle.json
