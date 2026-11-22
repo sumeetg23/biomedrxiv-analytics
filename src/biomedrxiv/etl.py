@@ -776,15 +776,62 @@ def build_analytics_payload(
             {"type": tlabel, "count": n, "pub_rate_pct": rate, "ci_low": lo, "ci_high": hi}
         )
 
-    # 12. Top 30 Institutions
-    inst_all = df.dropna(subset=["institution_clean"])
-    inst_counts = inst_all["institution_clean"].value_counts().head(30)
-    inst_mat = mature.dropna(subset=["institution_clean"])
-    inst_mat_grp = inst_mat.groupby("institution_clean").agg(
+    # 12. Top 30 Institutions (ROR-deduplicated when institution_ror_map.parquet exists)
+    ror_map_path = paths.processed_dir / "institution_ror_map.parquet"
+    ror_audit_path = paths.processed_dir / "ror_dedup_audit.json"
+    ror_dedup_audit: dict[str, Any] | None = None
+    institution_metadata: dict[str, dict[str, Any]] = {}
+
+    if ror_map_path.exists():
+        ror_map_df = pd.read_parquet(
+            ror_map_path,
+            columns=[
+                "institution_clean",
+                "ror_id",
+                "ror_name",
+                "ror_country",
+                "ror_country_code",
+                "ror_type",
+            ],
+        )
+        df = df.merge(ror_map_df, on="institution_clean", how="left")
+        df["institution_canonical"] = df["ror_name"].fillna(df["institution_clean"]).astype("string")
+        mature = df[df["year"] <= MATURE_COHORT_MAX_YEAR]
+        if ror_audit_path.exists():
+            ror_dedup_audit = json.loads(ror_audit_path.read_text(encoding="utf-8"))
+    else:
+        df["ror_id"] = pd.Series(pd.NA, index=df.index, dtype="string")
+        df["ror_country"] = pd.Series(pd.NA, index=df.index, dtype="string")
+        df["ror_country_code"] = pd.Series(pd.NA, index=df.index, dtype="string")
+        df["ror_type"] = pd.Series(pd.NA, index=df.index, dtype="string")
+        df["institution_canonical"] = df["institution_clean"]
+        mature = df[df["year"] <= MATURE_COHORT_MAX_YEAR]
+
+    inst_all = df.dropna(subset=["institution_canonical"])
+    top50_inst_counts = inst_all["institution_canonical"].value_counts().head(50)
+    top50_inst_set = set(top50_inst_counts.index.tolist())
+    inst_counts = top50_inst_counts.head(30)
+
+    # Capture canonical ROR metadata (ror_id, country, org_type) for Top 50 organizations
+    meta_rows = (
+        inst_all[inst_all["institution_canonical"].isin(top50_inst_set)]
+        .dropna(subset=["ror_id"])
+        .drop_duplicates("institution_canonical")
+    )
+    for row in meta_rows.itertuples(index=False):
+        institution_metadata[str(row.institution_canonical)] = {
+            "ror_id": str(row.ror_id),
+            "country": str(row.ror_country) if pd.notna(row.ror_country) else "",
+            "country_code": str(row.ror_country_code) if pd.notna(row.ror_country_code) else "",
+            "org_type": str(row.ror_type) if pd.notna(row.ror_type) else "",
+        }
+
+    inst_mat = mature.dropna(subset=["institution_canonical"])
+    inst_mat_grp = inst_mat.groupby("institution_canonical").agg(
         mature_count=("normalized_doi", "size"),
         mature_pub=("snapshot_is_published", "mean"),
     )
-    inst_med_auth = inst_all.groupby("institution_clean")["author_count"].median()
+    inst_med_auth = inst_all.groupby("institution_canonical")["author_count"].median()
     top_institutions: list[dict[str, Any]] = []
     for inst_name, cnt in inst_counts.items():
         m_cnt = int(inst_mat_grp.loc[inst_name, "mature_count"]) if inst_name in inst_mat_grp.index else 0
@@ -794,9 +841,13 @@ def build_analytics_payload(
             else 0.0
         )
         med_a = float(inst_med_auth.loc[inst_name]) if inst_name in inst_med_auth.index else 0.0
+        meta = institution_metadata.get(str(inst_name), {})
         top_institutions.append(
             {
                 "institution": str(inst_name),
+                "ror_id": meta.get("ror_id"),
+                "country": meta.get("country", ""),
+                "org_type": meta.get("org_type", ""),
                 "total_preprints": int(cnt),
                 "mature_preprints": m_cnt,
                 "mature_pub_rate_pct": m_pub,
@@ -806,7 +857,6 @@ def build_analytics_payload(
 
     # 13. Year-partitioned additive cubes for client-side dynamic year-range filtering
     available_years = sorted(int(y) for y in df["year"].dropna().unique().tolist())
-    top50_inst_set = set(inst_all["institution_clean"].value_counts().head(50).index.tolist())
     df_cube = df.copy()
     df_cube["rev_bucket"] = np.where(
         df_cube["num_versions"] >= 5, "5+", df_cube["num_versions"].astype(str)
@@ -897,9 +947,9 @@ def build_analytics_payload(
                 for t, r in type_grp.iterrows()
             }
 
-            # Top 50 institutions: {inst: [count, published_count, author_sum]}
-            inst_sub = sub[sub["institution_clean"].isin(top50_inst_set)]
-            inst_grp = inst_sub.groupby("institution_clean").agg(
+            # Top 50 institutions (ROR-deduplicated): {inst: [count, published_count, author_sum]}
+            inst_sub = sub[sub["institution_canonical"].isin(top50_inst_set)]
+            inst_grp = inst_sub.groupby("institution_canonical").agg(
                 cnt=("normalized_doi", "size"),
                 pub=("snapshot_is_published", "sum"),
                 asum=("author_count", "sum"),
@@ -909,6 +959,11 @@ def build_analytics_payload(
                 for inst, r in inst_grp.iterrows()
             }
 
+            # Top countries per year-server (from ROR geocoding)
+            country_vc = sub["ror_country"].dropna()
+            country_vc = country_vc[country_vc != ""].value_counts().head(30)
+            country_map = {str(k): int(v) for k, v in country_vc.items()}
+
             by_year[yr_str][srv] = {
                 "kpi": kpi_slice,
                 "categories": cat_map,
@@ -917,6 +972,7 @@ def build_analytics_payload(
                 "team_buckets": team_map,
                 "types": type_map,
                 "institutions": inst_map,
+                "countries": country_map,
             }
 
     return {
@@ -940,6 +996,8 @@ def build_analytics_payload(
         "team_vs_pub": team_vs_pub,
         "type_bias": type_bias,
         "top_institutions": top_institutions,
+        "institution_metadata": institution_metadata,
+        "ror_dedup_audit": ror_dedup_audit,
         "clinical_trials": build_clinical_trials_payload(paths),
     }
 

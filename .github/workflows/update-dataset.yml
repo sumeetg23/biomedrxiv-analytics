@@ -40,6 +40,7 @@ jobs:
           .venv/bin/python scripts/run_pipeline.py \
             --source both \
             --enrich-nct \
+            --dedup-ror \
             --use-gemini \
             --output-markdown logs/release_digest.md
 

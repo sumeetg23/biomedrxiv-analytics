@@ -206,34 +206,50 @@
 
     <!-- TAB 5: INSTITUTIONS & AUDIT -->
     <section class="tab-panel" id="tab-institutions">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h2>Top 30 Corresponding Institutions: Volume vs. Mature-Cohort Publication Rate</h2>
-            <p class="subtitle">Bubble size encodes median team size. Raw institutional strings (not yet ROR-deduplicated).</p>
+      <div class="callout" id="ror-audit-callout"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Top 30 Institutions: Volume vs. Publication Rate</h2>
+              <p class="subtitle">ROR-deduplicated organizations. Bubble size encodes average team size.</p>
+            </div>
           </div>
+          <div id="chart-institutions" class="plot"></div>
         </div>
-        <div id="chart-institutions" class="plot"></div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Top 15 Countries by Preprint Volume</h2>
+              <p class="subtitle">Geocoded via official ROR organization registry (updates with year &amp; server filters).</p>
+            </div>
+          </div>
+          <div id="chart-countries" class="plot"></div>
+        </div>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div>
-            <h2>Top 30 Corresponding Institutions Table</h2>
-            <p class="subtitle">Filter by institution name.</p>
+            <h2>Top 30 Corresponding Institutions (ROR-Deduplicated)</h2>
+            <p class="subtitle">Filter by organization name, country, or type.</p>
           </div>
-          <input type="search" id="inst-search" class="search-input" placeholder="Search institutions..." />
+          <input type="search" id="inst-search" class="search-input" placeholder="Search institutions or countries..." />
         </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>Corresponding Institution</th>
-                <th class="num">Total Preprints</th>
+                <th>Organization (ROR)</th>
+                <th>Country</th>
+                <th>Type</th>
+                <th class="num">Preprints</th>
                 <th class="num">Mature (&le; 2024)</th>
-                <th class="num">Mature Pub Rate</th>
-                <th class="num">Median Authors</th>
+                <th class="num">Pub Rate</th>
+                <th class="num">Avg Authors</th>
               </tr>
             </thead>
             <tbody id="inst-tbody"></tbody>

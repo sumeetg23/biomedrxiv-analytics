@@ -25,8 +25,10 @@ Bio&Med-RxivDataset/
 ├── src/biomedrxiv/                # Pure Python ETL & data-engineering package
 │   ├── config.py                  # Canonical project path configuration
 │   ├── versioning.py              # Kaggle download, hashing, snapshotting & diffing
+│   ├── biorxiv_sync.py            # Direct bioRxiv/medRxiv API incremental updater
 │   ├── preprocessing.py           # Data cleaning & DOI-level deduplication
 │   ├── etl.py                     # Chunked Parquet materialization & JSON contract export
+│   ├── ror_dedup.py               # Official ROR institutional deduplication & country geocoding
 │   ├── publication_checker.py     # bioRxiv/medRxiv pubs + Crossref + OpenAlex + SQLite cache
 │   ├── clinical_trials.py         # ClinicalTrials.gov v2 + Europe PMC + NIH iCite linkage
 │   ├── qa_engine.py               # Read-only DuckDB SQL + Gemini/Ollama tool-calling engine
@@ -36,13 +38,15 @@ Bio&Med-RxivDataset/
 │   └── scheduler.py               # macOS LaunchAgent & cron generator
 ├── scripts/                       # Thin CLI entrypoints
 │   ├── download_dataset.py        # CLI: sync, list, diff, and switch dataset versions
+│   ├── sync_biorxiv_api.py        # Direct bioRxiv/medRxiv API incremental updater CLI
 │   ├── update_dataset.py          # Automated updater + macOS launchd / cron setup
 │   ├── run_etl.py                 # Pure ETL: CSV -> Parquet -> web/data/dashboard_data.json
+│   ├── deduplicate_institutions.py # Official ROR institutional deduplication CLI
 │   ├── check_publications.py      # Multi-API peer-reviewed journal verification CLI
 │   ├── check_clinical_trials.py   # Direct trial registry + downstream NIH iCite CLI
 │   ├── run_qa_app.py              # Local FastAPI + DuckDB + Gemini/Ollama Q&A launcher
 │   ├── run_quality_gates.py       # Standalone data quality & contract validation CLI
-│   └── run_pipeline.py            # End-to-end sync -> ETL -> trials -> gates orchestrator
+│   └── run_pipeline.py            # End-to-end sync -> ETL -> trials -> ROR -> gates orchestrator
 ├── app/
 │   └── index.html                 # Local AI Analyst Chat + Direct DuckDB SQL UI
 ├── web/                           # Decoupled static web dashboard (GitHub Pages artifact)

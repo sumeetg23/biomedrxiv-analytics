@@ -101,6 +101,7 @@ class DuckDBQueryEngine:
         "preprints": "preprints_canonical.parquet",
         "clinical_trials": "clinical_trials_enriched.parquet",
         "downstream_clinical": "downstream_clinical_impact.parquet",
+        "institution_ror_map": "institution_ror_map.parquet",
     }
 
     def __init__(self, paths: ProjectPaths | None = None) -> None:

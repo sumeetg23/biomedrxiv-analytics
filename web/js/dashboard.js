@@ -90,6 +90,7 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
   const teamBuckets = {}; // bucket -> [cnt, pub]
   const types = {}; // type -> [cnt, pub]
   const institutions = {}; // inst -> [cnt, pub, asum, matCnt, matPub]
+  const countries = {}; // country -> cnt
 
   for (const y of DATA.available_years) {
     if (y < yrMin || y > yrMax) continue;
@@ -169,6 +170,10 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
         }
         institutions[inst] = cur;
       }
+
+      for (const [country, cnt] of Object.entries(s.countries || {})) {
+        countries[country] = (countries[country] || 0) + cnt;
+      }
     }
   }
 
@@ -196,6 +201,7 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
     teamBuckets,
     types,
     institutions,
+    countries,
   };
 }
 
@@ -1066,15 +1072,36 @@ function renderTrialsTable(query) {
 
 function renderInstitutions(agg) {
   const c = themeColors();
+  const rorAudit = DATA.ror_dedup_audit;
+  const rorBox = document.getElementById("ror-audit-callout");
+  if (rorAudit) {
+    rorBox.innerHTML =
+      `<strong>ROR Institutional Deduplication Active:</strong> Resolved <strong>${rorAudit.coverage_pct}%</strong> of preprints (` +
+      `<strong>${fmtInt(rorAudit.matched_preprints)}</strong> / ${fmtInt(rorAudit.total_non_null_preprints)}) by collapsing ` +
+      `<strong>${fmtInt(rorAudit.unique_raw_strings)}</strong> raw affiliation strings into ` +
+      `<strong>${fmtInt(rorAudit.unique_ror_orgs_matched)}</strong> canonical <a href="https://ror.org/" target="_blank" rel="noopener">ROR</a> organizations across ` +
+      `<strong>${fmtInt(rorAudit.unique_countries)}</strong> countries.`;
+  } else {
+    rorBox.innerHTML =
+      "<strong>ROR Deduplication Not Yet Run:</strong> Run <code>.venv/bin/python scripts/deduplicate_institutions.py</code> then <code>scripts/run_etl.py --skip-parquet</code>.";
+  }
+
+  const metaMap = DATA.institution_metadata || {};
   currentInstList = Object.entries(agg.institutions)
-    .map(([institution, [cnt, pub, asum, matCnt, matPub]]) => ({
-      institution,
-      total_preprints: cnt,
-      mature_preprints: matCnt,
-      pub_rate_pct: cnt > 0 ? +((pub / cnt) * 100).toFixed(1) : 0,
-      mature_pub_rate_pct: matCnt > 0 ? +((matPub / matCnt) * 100).toFixed(1) : null,
-      avg_authors: cnt > 0 ? +(asum / cnt).toFixed(1) : 0,
-    }))
+    .map(([institution, [cnt, pub, asum, matCnt, matPub]]) => {
+      const m = metaMap[institution] || {};
+      return {
+        institution,
+        ror_id: m.ror_id || null,
+        country: m.country || "",
+        org_type: m.org_type || "",
+        total_preprints: cnt,
+        mature_preprints: matCnt,
+        pub_rate_pct: cnt > 0 ? +((pub / cnt) * 100).toFixed(1) : 0,
+        mature_pub_rate_pct: matCnt > 0 ? +((matPub / matCnt) * 100).toFixed(1) : null,
+        avg_authors: cnt > 0 ? +(asum / cnt).toFixed(1) : 0,
+      };
+    })
     .filter((d) => d.total_preprints > 0)
     .sort((a, b) => b.total_preprints - a.total_preprints)
     .slice(0, 30);
@@ -1097,14 +1124,39 @@ function renderInstitutions(agg) {
           opacity: 0.85,
           line: { width: 1, color: "#ffffff" },
         },
-        customdata: currentInstList.map((d) => [d.institution, d.avg_authors, d.mature_pub_rate_pct ?? "—"]),
+        customdata: currentInstList.map((d) => [d.institution, d.country || "—", d.avg_authors, d.mature_pub_rate_pct ?? "—"]),
         hovertemplate:
-          "<b>%{customdata[0]}</b><br>Preprints (window): %{x:,}<br>Pub Rate (window): %{y}%<br>Mature Pub Rate: %{customdata[2]}%<br>Avg Authors: %{customdata[1]}<extra></extra>",
+          "<b>%{customdata[0]}</b> (%{customdata[1]})<br>Preprints (window): %{x:,}<br>Pub Rate (window): %{y}%<br>Mature Pub Rate: %{customdata[3]}%<br>Avg Authors: %{customdata[2]}<extra></extra>",
       },
     ],
     baseLayout({
       xaxis: { title: `Preprints in ${yearRangeLabel()} (log scale)`, type: "log", gridcolor: c.grid },
       yaxis: { title: `Publication Rate in ${yearRangeLabel()} (%)`, gridcolor: c.grid },
+    }),
+    PLOT_CFG
+  );
+
+  // Top 15 Countries chart
+  const topCountries = Object.entries(agg.countries || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .reverse();
+  Plotly.newPlot(
+    "chart-countries",
+    [
+      {
+        type: "bar",
+        orientation: "h",
+        y: topCountries.map(([k]) => k),
+        x: topCountries.map(([, v]) => v),
+        marker: { color: currentServer === "medrxiv" ? c.medrxiv : c.biorxiv },
+        hovertemplate: `<b>%{y}</b><br>Preprints (${yearRangeLabel()}): %{x:,}<extra></extra>`,
+      },
+    ],
+    baseLayout({
+      margin: { l: 150, r: 20, t: 20, b: 48 },
+      xaxis: { title: `ROR-Matched Preprints (${yearRangeLabel()})`, gridcolor: c.grid },
+      yaxis: { automargin: true },
     }),
     PLOT_CFG
   );
@@ -1127,7 +1179,7 @@ function renderInstitutions(agg) {
     {
       label: "Canonical Parquet",
       value: `${a.canonical_parquet_mb ?? "—"} MiB`,
-      sub: "449k unique DOIs (zstd)",
+      sub: "454k unique DOIs (zstd)",
     },
     {
       label: "Versions Parquet",
@@ -1148,12 +1200,24 @@ function renderInstitutions(agg) {
 
 function renderInstTable(query) {
   const q = (query || "").trim().toLowerCase();
-  const rows = currentInstList.filter((d) => !q || d.institution.toLowerCase().includes(q));
+  const rows = currentInstList.filter(
+    (d) =>
+      !q ||
+      d.institution.toLowerCase().includes(q) ||
+      (d.country && d.country.toLowerCase().includes(q)) ||
+      (d.org_type && d.org_type.toLowerCase().includes(q))
+  );
   document.getElementById("inst-tbody").innerHTML = rows
     .map(
       (d, idx) => `<tr>
         <td>${idx + 1}</td>
-        <td>${d.institution}</td>
+        <td>${
+          d.ror_id
+            ? `<a href="${d.ror_id}" target="_blank" rel="noopener"><strong>${d.institution}</strong></a>`
+            : `<strong>${d.institution}</strong>`
+        }</td>
+        <td>${d.country || "—"}</td>
+        <td><span class="badge badge-muted">${d.org_type || "raw"}</span></td>
         <td class="num">${fmtInt(d.total_preprints)}</td>
         <td class="num">${fmtInt(d.mature_preprints)}</td>
         <td class="num">${fmtPct(d.pub_rate_pct)}</td>

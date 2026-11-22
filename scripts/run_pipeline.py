@@ -38,6 +38,7 @@ from biomedrxiv.etl import (
 )
 from biomedrxiv.quality_gates import evaluate_quality_gates
 from biomedrxiv.release_agent import build_release_digest_markdown
+from biomedrxiv.ror_dedup import build_institution_ror_mapping
 from biomedrxiv.versioning import DatasetVersionManager
 
 
@@ -61,6 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--enrich-nct",
         action="store_true",
         help="Also query ClinicalTrials.gov API v2 for any newly discovered NCT IDs.",
+    )
+    parser.add_argument(
+        "--dedup-ror",
+        action="store_true",
+        help="Run official ROR institutional deduplication (downloads CC0 ROR dump if needed).",
     )
     parser.add_argument(
         "--use-gemini",
@@ -126,6 +132,19 @@ def main(argv: list[str] | None = None) -> int:
             )
             cache = ClinicalTrialsCache(paths.cache_dir / "clinical_trials.sqlite")
             ClinicalTrialsLinker(cache=cache).enrich_nct_ids(nct_ids)
+
+        cached_ror = paths.cache_dir / "ror" / "ror_data_latest.json"
+        if args.dedup_ror or cached_ror.exists():
+            ror_summary = build_institution_ror_mapping(
+                paths,
+                ror_json_path=cached_ror if cached_ror.exists() else None,
+                api_fallback_top_n=0,
+            )
+            logger.info(
+                "ROR deduplication coverage: %.1f%% (%d unique ROR orgs)",
+                ror_summary["coverage_pct"],
+                ror_summary["unique_ror_orgs_matched"],
+            )
 
         payload = build_analytics_payload(paths, audit=audit)
         export_dashboard_json(payload, dashboard_json)
