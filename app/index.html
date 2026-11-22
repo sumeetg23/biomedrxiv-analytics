@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BioRxiv &amp; MedRxiv — DuckDB + LLM Analyst</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --surface-alt: #f0f4f9;
+      --border: #dfe5ef;
+      --text: #0f172a;
+      --text-muted: #475569;
+      --accent: #0f766e;
+      --accent-soft: #ccfbf1;
+      --warn-bg: #fef3c7;
+      --warn: #b45309;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 14px rgba(15, 23, 42, 0.04);
+    }
+    [data-theme="dark"] {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-alt: #1e293b;
+      --border: #273549;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #2dd4bf;
+      --accent-soft: #134e4a;
+      --warn-bg: #451a03;
+      --warn: #fbbf24;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+      box-shadow: var(--shadow);
+    }
+    header h1 { margin: 0; font-size: 1.15rem; }
+    header p { margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--text-muted); }
+    .controls { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.3rem 0.7rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600;
+      background: var(--surface-alt); border: 1px solid var(--border); color: var(--text);
+    }
+    .pill-ok { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+    .btn {
+      border: 1px solid var(--border); background: var(--surface-alt); color: var(--text);
+      border-radius: 8px; padding: 0.42rem 0.85rem; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+    }
+    .btn-primary { background: var(--accent); color: #ffffff; border-color: transparent; }
+    [data-theme="dark"] .btn-primary { color: #0b1120; }
+    select {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      border-radius: 8px; padding: 0.38rem 0.6rem; font-size: 0.82rem; font-weight: 600;
+    }
+
+    .tabs {
+      max-width: 1220px; margin: 0.85rem auto 0; padding: 0 1.25rem;
+      display: flex; gap: 0.4rem; border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      border: none; background: transparent; color: var(--text-muted);
+      font-weight: 600; font-size: 0.9rem; padding: 0.65rem 1rem;
+      border-bottom: 3px solid transparent; cursor: pointer;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    main { max-width: 1220px; margin: 1.1rem auto 3rem; padding: 0 1.25rem; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.1rem 1.25rem;
+      box-shadow: var(--shadow); margin-bottom: 1rem;
+    }
+    .suggestions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0.9rem; }
+    .chip {
+      border: 1px solid var(--border); background: var(--surface-alt); color: var(--text);
+      border-radius: 999px; padding: 0.32rem 0.75rem; font-size: 0.78rem; cursor: pointer;
+    }
+    .chip:hover { border-color: var(--accent); }
+
+    .chat-log { display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1rem; }
+    .msg {
+      padding: 0.9rem 1.05rem; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .msg-user { background: var(--surface-alt); align-self: flex-end; max-width: 85%; }
+    .msg-bot { align-self: stretch; }
+    .msg-meta { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 0.35rem; font-weight: 600; }
+    .msg-body { white-space: pre-wrap; font-size: 0.92rem; }
+
+    details { margin-top: 0.7rem; }
+    summary { cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+    pre {
+      background: var(--surface-alt); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.65rem; overflow-x: auto; font-size: 0.8rem;
+    }
+
+    .input-row { display: flex; gap: 0.6rem; }
+    input[type="text"], textarea {
+      width: 100%; border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); border-radius: 8px; padding: 0.65rem 0.85rem;
+      font-family: inherit; font-size: 0.9rem;
+    }
+    textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.84rem; min-height: 110px; }
+
+    .table-wrap { overflow-x: auto; margin-top: 0.65rem; max-height: 420px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th, td { padding: 0.5rem 0.65rem; border-bottom: 1px solid var(--border); text-align: left; }
+    th { background: var(--surface-alt); color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase; position: sticky; top: 0; }
+    .callout-warn { background: var(--warn-bg); border-left: 4px solid var(--warn); padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 0.9rem; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>BioRxiv &amp; MedRxiv — DuckDB + LLM Analyst</h1>
+      <p id="status-line">Connecting to local DuckDB engine...</p>
+    </div>
+    <div class="controls">
+      <span id="provider-badge" class="pill">Checking providers...</span>
+      <select id="provider-select" aria-label="LLM Provider">
+        <option value="auto">Provider: Auto</option>
+        <option value="gemini">Gemini API (gemini-4-hydrogen)</option>
+        <option value="ollama">Local Ollama</option>
+      </select>
+      <a class="btn" href="/dashboard/">Open Visual Dashboard &rarr;</a>
+      <button id="theme-btn" class="btn" type="button">Dark Mode</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="chat">1. AI Analyst Chat</button>
+    <button class="tab-btn" data-tab="sql">2. Direct DuckDB SQL</button>
+    <button class="tab-btn" data-tab="search">3. Instant Paper Search</button>
+  </nav>
+
+  <main>
+    <!-- TAB 1: CHAT -->
+    <section id="panel-chat" class="panel active">
+      <div id="no-llm-banner" class="callout-warn" style="display:none;"></div>
+      <div class="card">
+        <div class="suggestions" id="suggestions">
+          <button class="chip" type="button">Compare mature (&le;2024) peer-review publication rates across top 10 bioRxiv vs medRxiv categories</button>
+          <button class="chip" type="button">Which Phase 3 clinical trials on medRxiv have the highest enrollment and got published?</button>
+          <button class="chip" type="button">Top 10 papers cited by downstream clinical trials according to NIH iCite</button>
+          <button class="chip" type="button">How fast have AlphaFold and LLM preprints grown each year since 2021?</button>
+        </div>
+        <div id="chat-log" class="chat-log"></div>
+        <form id="chat-form" class="input-row">
+          <input id="chat-input" type="text" placeholder="Ask any analytical or discovery question across 449k preprints & clinical trials..." required />
+          <button class="btn btn-primary" type="submit" id="chat-send">Ask</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 2: DIRECT SQL -->
+    <section id="panel-sql" class="panel">
+      <div class="card">
+        <p style="margin-top:0;font-size:0.85rem;color:var(--text-muted);">
+          Run read-only DuckDB SQL directly against <code>preprints</code>, <code>clinical_trials</code>, and <code>downstream_clinical</code> (works 100% offline).
+        </p>
+        <textarea id="sql-input">SELECT server_clean,
+       COUNT(*) AS unique_dois,
+       ROUND(AVG(CASE WHEN snapshot_is_published THEN 100.0 ELSE 0.0 END), 2) AS pub_rate_pct,
+       MEDIAN(author_count) AS median_authors
+FROM preprints
+WHERE EXTRACT(YEAR FROM first_posted_date) <= 2024
+GROUP BY 1
+ORDER BY unique_dois DESC;</textarea>
+        <div style="margin-top:0.6rem;display:flex;gap:0.5rem;align-items:center;">
+          <button id="sql-run" class="btn btn-primary" type="button">Run Query</button>
+          <span id="sql-meta" style="font-size:0.82rem;color:var(--text-muted);"></span>
+        </div>
+        <div id="sql-output" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: PAPER SEARCH -->
+    <section id="panel-search" class="panel">
+      <div class="card">
+        <form id="search-form" class="input-row" style="margin-bottom:0.75rem;">
+          <input id="search-input" type="text" placeholder="Search titles, categories, or institutions (e.g. semaglutide, AlphaFold, Stanford)..." required />
+          <select id="search-server">
+            <option value="">All servers</option>
+            <option value="biorxiv">bioRxiv</option>
+            <option value="medrxiv">medRxiv</option>
+          </select>
+          <label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.82rem;white-space:nowrap;">
+            <input id="search-pub" type="checkbox" /> Published only
+          </label>
+          <button class="btn btn-primary" type="submit">Search</button>
+        </form>
+        <div id="search-output" class="table-wrap"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let lastInteractionId = null;
+
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+    }
+
+    function renderTableHtml(res) {
+      if (!res || !res.columns || !res.columns.length) return "<p>No rows returned.</p>";
+      const head = res.columns.map((c) => `<th>${esc(c)}</th>`).join("");
+      const body = (res.rows || [])
+        .map((row) => `<tr>${res.columns.map((c) => {
+          const v = row[c];
+          if (c === "doi_link" && v) return `<td><a href="${esc(v)}" target="_blank" rel="noopener">DOI</a></td>`;
+          return `<td>${esc(v)}</td>`;
+        }).join("")}</tr>`)
+        .join("");
+      return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    function appendMessage(role, meta, text, sqlQueries = [], tables = []) {
+      const log = document.getElementById("chat-log");
+      const div = document.createElement("div");
+      div.className = `msg ${role === "user" ? "msg-user" : "msg-bot"}`;
+      let details = "";
+      if (sqlQueries.length || tables.length) {
+        const sqlHtml = sqlQueries.map((q) => `<pre>${esc(q)}</pre>`).join("");
+        const tblHtml = tables.map((t) => `<div class="table-wrap">${renderTableHtml(t)}</div>`).join("");
+        details = `<details><summary>Inspect Executed DuckDB SQL &amp; Data (${sqlQueries.length} query, ${tables.reduce((a, t) => a + (t.row_count || 0), 0)} rows)</summary>${sqlHtml}${tblHtml}</details>`;
+      }
+      div.innerHTML = `<div class="msg-meta">${esc(meta)}</div><div class="msg-body">${esc(text)}</div>${details}`;
+      log.appendChild(div);
+      div.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+
+    async function loadHealth() {
+      const resp = await fetch("/api/health");
+      const h = await resp.json();
+      const tblText = Object.entries(h.tables).map(([k, v]) => `${k}: ${Number(v).toLocaleString()}`).join(" • ");
+      document.getElementById("status-line").textContent = `DuckDB Views Ready — ${tblText}`;
+
+      const badge = document.getElementById("provider-badge");
+      const banner = document.getElementById("no-llm-banner");
+      if (h.providers.gemini.configured) {
+        badge.textContent = `Gemini Ready (${h.providers.gemini.default_model})`;
+        badge.classList.add("pill-ok");
+      } else if (h.providers.ollama.reachable) {
+        badge.textContent = `Ollama Ready (${h.providers.ollama.installed_models[0] || h.providers.ollama.default_model})`;
+        badge.classList.add("pill-ok");
+      } else {
+        badge.textContent = "Offline Mode (SQL & Search Only)";
+        banner.style.display = "block";
+        banner.innerHTML =
+          "<strong>No LLM key detected:</strong> Set <code>export GEMINI_API_KEY=...</code> (or start local <code>ollama serve</code>) and restart <code>scripts/run_qa_app.py</code> to enable AI chat. <strong>Direct DuckDB SQL</strong> and <strong>Instant Paper Search</strong> work offline right now.";
+      }
+    }
+
+    async function submitQuestion(q) {
+      const provider = document.getElementById("provider-select").value;
+      appendMessage("user", "You", q);
+      const sendBtn = document.getElementById("chat-send");
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Thinking...";
+      try {
+        const resp = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: q,
+            provider,
+            previous_interaction_id: provider === "ollama" ? null : lastInteractionId,
+          }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+        lastInteractionId = data.interaction_id || lastInteractionId;
+        appendMessage(
+          "bot",
+          `Analyst (${data.provider} • ${data.model})`,
+          data.answer,
+          data.sql_queries || [],
+          data.tables || []
+        );
+      } catch (err) {
+        appendMessage("bot", "Error", err.message);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Ask";
+      }
+    }
+
+    document.getElementById("chat-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("chat-input");
+      const q = input.value.trim();
+      if (!q) return;
+      input.value = "";
+      submitQuestion(q);
+    });
+
+    document.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => submitQuestion(chip.textContent.trim()));
+    });
+
+    document.getElementById("sql-run").addEventListener("click", async () => {
+      const sql = document.getElementById("sql-input").value;
+      const meta = document.getElementById("sql-meta");
+      const out = document.getElementById("sql-output");
+      meta.textContent = "Running...";
+      const t0 = performance.now();
+      const resp = await fetch("/api/sql", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sql, max_rows: 100 }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        meta.textContent = `Error: ${data.detail}`;
+        out.innerHTML = "";
+        return;
+      }
+      meta.textContent = `${data.row_count} row(s) in ${(performance.now() - t0).toFixed(0)} ms${data.truncated ? " (truncated)" : ""}`;
+      out.innerHTML = renderTableHtml(data);
+    });
+
+    document.getElementById("search-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const q = document.getElementById("search-input").value.trim();
+      const srv = document.getElementById("search-server").value;
+      const pub = document.getElementById("search-pub").checked;
+      const params = new URLSearchParams({ q, limit: "30" });
+      if (srv) params.set("server", srv);
+      if (pub) params.set("published_only", "true");
+      const resp = await fetch(`/api/search?${params}`);
+      const data = await resp.json();
+      document.getElementById("search-output").innerHTML = renderTableHtml(data);
+    });
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(`panel-${btn.dataset.tab}`).classList.add("active");
+      });
+    });
+
+    document.getElementById("theme-btn").addEventListener("click", (e) => {
+      const html = document.documentElement;
+      const next = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      html.setAttribute("data-theme", next);
+      e.target.textContent = next === "dark" ? "Light Mode" : "Dark Mode";
+    });
+
+    loadHealth();
+  </script>
+</body>
+</html>

@@ -29,13 +29,18 @@ Bio&Med-RxivDataset/
 │   ├── etl.py                     # Chunked Parquet materialization & JSON contract export
 │   ├── publication_checker.py     # bioRxiv/medRxiv pubs + Crossref + OpenAlex + SQLite cache
 │   ├── clinical_trials.py         # ClinicalTrials.gov v2 + Europe PMC + NIH iCite linkage
+│   ├── qa_engine.py               # Read-only DuckDB SQL + Gemini/Ollama tool-calling engine
+│   ├── qa_server.py               # Local FastAPI server exposing Q&A + SQL + search APIs
 │   └── scheduler.py               # macOS LaunchAgent & cron generator
-├── scripts/                       # Thin ETL CLI entrypoints
+├── scripts/                       # Thin CLI entrypoints
 │   ├── download_dataset.py        # CLI: sync, list, diff, and switch dataset versions
 │   ├── update_dataset.py          # Automated updater + macOS launchd / cron setup
 │   ├── run_etl.py                 # Pure ETL: CSV -> Parquet -> web/data/dashboard_data.json
 │   ├── check_publications.py      # Multi-API peer-reviewed journal verification CLI
-│   └── check_clinical_trials.py   # Direct trial registry + downstream NIH iCite CLI
+│   ├── check_clinical_trials.py   # Direct trial registry + downstream NIH iCite CLI
+│   └── run_qa_app.py              # Local FastAPI + DuckDB + Gemini/Ollama Q&A launcher
+├── app/
+│   └── index.html                 # Local AI Analyst Chat + Direct DuckDB SQL UI
 ├── web/                           # Decoupled static web dashboard (GitHub Pages artifact)
 │   ├── index.html                 # Dashboard markup
 │   ├── css/styles.css             # Responsive light/dark styling
@@ -191,4 +196,24 @@ gh api -X POST repos/<your-username>/<your-repo>/pages -f build_type=workflow
 
 # 4. Refresh the web dashboard JSON contract with Clinical Trials Tab 6
 .venv/bin/python scripts/run_etl.py --skip-parquet
+```
+
+---
+
+## 7. Local DuckDB + LLM Analyst App (`app/` + `scripts/run_qa_app.py`)
+
+Ask natural-language analytical questions backed by deterministic, read-only **DuckDB SQL** over `preprints`, `clinical_trials`, and `downstream_clinical` Parquet views — keeping `web/` 100% static and secret-free for GitHub Pages.
+
+- **Primary LLM:** Gemini API via `google-genai` Interactions API (default `gemini-4-hydrogen`, set `GEMINI_API_KEY`).
+- **Offline LLM Fallback:** Local Ollama (`http://127.0.0.1:11434`, e.g., `llama3.2`).
+- **Zero-LLM Mode:** Includes a **Direct DuckDB SQL Playground** and **Instant Paper Search** that work completely offline even without an API key, plus a local mirror of the visual dashboard at `/dashboard/`.
+
+```bash
+# Option A: With Gemini API
+export GEMINI_API_KEY="your-api-key"
+.venv/bin/python scripts/run_qa_app.py --port 8000
+
+# Option B: With local Ollama (or offline SQL/search mode)
+.venv/bin/python scripts/run_qa_app.py --ollama-model llama3.2 --port 8000
+# Open http://127.0.0.1:8000/ (Q&A + SQL) or http://127.0.0.1:8000/dashboard/
 ```
