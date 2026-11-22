@@ -1,45 +1,51 @@
 # BioRxiv & MedRxiv Preprint Dataset Toolkit
 
-A modular, version-controlled data engineering and analysis workspace for the Kaggle dataset [`m0delcrafter/bio-and-med-dataset`](https://www.kaggle.com/datasets/m0delcrafter/bio-and-med-dataset) (605,767 version rows / 449,506 unique bioRxiv & medRxiv preprints spanning Nov 2013 – Oct 2026).
+A modular, version-controlled data engineering and analytics project for the Kaggle dataset [`m0delcrafter/bio-and-med-dataset`](https://www.kaggle.com/datasets/m0delcrafter/bio-and-med-dataset) (605,767 version rows / 449,506 unique bioRxiv & medRxiv preprints spanning Nov 2013 – Oct 2026).
 
 **[View Interactive Web Dashboard (GitHub Pages)](https://sumeetg23.github.io/biomedrxiv-analytics/)**
 
-## Project Structure
+## Architecture: Clean Separation of ETL vs. Web
+
+The project intentionally decouples **data engineering (ETL)** from **web visualization**:
+
+- **ETL & Data Engineering (`src/biomedrxiv/` + `scripts/`)** — Pure Python data processing: downloads versioned Kaggle snapshots, cleans & deduplicates into zstd Parquet tables, verifies peer-reviewed publications, and exports a single JSON data contract (`web/data/dashboard_data.json`). Contains zero HTML/CSS/JS.
+- **Web Dashboard (`web/`)** — Pure static frontend (`index.html`, `css/styles.css`, `js/dashboard.js`, `serve.py`) that consumes `web/data/dashboard_data.json` and deploys directly to GitHub Pages via [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml).
+- **Documentation (`docs/`)** — Research plan and analytical specifications ([`docs/analysis_plan.md`](docs/analysis_plan.md)).
 
 ```text
 Bio&Med-RxivDataset/
-├── data/
-│   ├── versions/                  # Immutable, SHA-256-verified dataset snapshots (gitignored)
-│   │   └── vYYYYMMDD_HHMMSS_<hash>/
-│   │       ├── biorxiv_medrxiv_preprints.csv
-│   │       ├── biorxiv_pages.jsonl
-│   │       ├── medrxiv_pages.jsonl
-│   │       └── manifest.json      # Per-file checksums, sizes, row counts, diff
+├── data/                          # Local data store (gitignored)
+│   ├── versions/                  # Immutable, SHA-256-verified dataset snapshots
 │   ├── current -> versions/...    # Atomic symlink to active dataset version
-│   ├── processed/                 # Materialized zstd Parquet tables (gitignored)
+│   ├── processed/                 # Materialized zstd Parquet tables
 │   │   ├── preprints_versions.parquet
 │   │   └── preprints_canonical.parquet
 │   ├── cache/                     # SQLite cache for peer-reviewed publication checks
 │   └── registry.json              # Local version history & update check audit log
-├── docs/                          # GitHub Pages root
-│   ├── index.html                 # Interactive Plotly.js web dashboard
-│   ├── data/dashboard_data.json   # Compact pre-aggregated analytics JSON
-│   └── analysis_plan.md           # Full analysis plan, research questions & viz blueprint
-├── scripts/
-│   ├── download_dataset.py        # CLI: sync, list, diff, and switch dataset versions
-│   ├── update_dataset.py          # Automated updater + macOS launchd / cron setup
-│   ├── check_publications.py      # Multi-API peer-reviewed journal verification CLI
-│   └── build_report.py            # Materialize Parquet tables & build web dashboard
-├── src/biomedrxiv/
+├── src/biomedrxiv/                # Pure Python ETL & data-engineering package
 │   ├── config.py                  # Canonical project path configuration
 │   ├── versioning.py              # Kaggle download, hashing, snapshotting & diffing
 │   ├── preprocessing.py           # Data cleaning & DOI-level deduplication
+│   ├── etl.py                     # Chunked Parquet materialization & JSON contract export
 │   ├── publication_checker.py     # bioRxiv/medRxiv pubs + Crossref + OpenAlex + SQLite cache
-│   ├── reporting.py               # Chunked Parquet materialization & analytics aggregations
-│   ├── dashboard_template.py      # Static interactive HTML dashboard renderer
 │   └── scheduler.py               # macOS LaunchAgent & cron generator
+├── scripts/                       # Thin ETL CLI entrypoints
+│   ├── download_dataset.py        # CLI: sync, list, diff, and switch dataset versions
+│   ├── update_dataset.py          # Automated updater + macOS launchd / cron setup
+│   ├── run_etl.py                 # Pure ETL: CSV -> Parquet -> web/data/dashboard_data.json
+│   └── check_publications.py      # Multi-API peer-reviewed journal verification CLI
+├── web/                           # Decoupled static web dashboard (GitHub Pages artifact)
+│   ├── index.html                 # Dashboard markup
+│   ├── css/styles.css             # Responsive light/dark styling
+│   ├── js/dashboard.js            # Plotly.js visualization controller
+│   ├── data/dashboard_data.json   # Data contract produced by scripts/run_etl.py
+│   ├── serve.py                   # Lightweight local HTTP preview server
+│   └── .nojekyll
+├── docs/
+│   └── analysis_plan.md           # Full analysis plan, research questions & viz blueprint
 ├── tests/                         # Unit tests (pytest)
 ├── .github/workflows/
+│   ├── deploy-pages.yml           # Auto-deploys web/ to GitHub Pages on push to main
 │   └── update-dataset.yml         # Optional weekly GitHub Actions update check
 ├── pyproject.toml
 ├── requirements.txt
@@ -60,7 +66,7 @@ python3 -m venv .venv
 
 ## 1. Downloading & Managing Dataset Versions
 
-Every snapshot is stored immutably in `data/versions/<version_id>/` with a `manifest.json`, and `data/current` points atomically to the active version. If upstream Kaggle content has not changed (identical SHA-256 digest), no duplicate snapshot is created — only a check timestamp is appended to `data/registry.json`.
+Every snapshot is stored immutably in `data/versions/<version_id>/` with a `manifest.json`, and `data/current` points atomically to the active version. Identical re-downloads do not duplicate disk space — they log a check timestamp in `data/registry.json`.
 
 ```bash
 # Download latest from Kaggle (creates a new version only if content changed)
@@ -81,14 +87,7 @@ Every snapshot is stored immutably in `data/versions/<version_id>/` with a `mani
 ## 2. Automatic Dataset Updates
 
 ### Option A: macOS Native `launchd` (Recommended on macOS)
-Unlike `cron`, macOS `launchd` handles sleeping laptops gracefully and logs directly into `logs/`.
-
 ```bash
-# Preview/write the plist locally without loading it
-.venv/bin/python scripts/update_dataset.py \
-  --write-launchd-plist ./config/com.biomedrxiv.dataset.updater.plist \
-  --weekday 0 --hour 3 --minute 0
-
 # Install and activate the weekly LaunchAgent (Sundays at 03:00 local time)
 .venv/bin/python scripts/update_dataset.py --install-launchd --weekday 0 --hour 3 --minute 0
 
@@ -101,61 +100,68 @@ Unlike `cron`, macOS `launchd` handles sleeping laptops gracefully and logs dire
 
 ### Option B: `cron`
 ```bash
-# Generate a ready-to-paste crontab entry
 .venv/bin/python scripts/update_dataset.py --print-cron --weekday 0 --hour 3 --minute 0
 ```
 
 ### Option C: GitHub Actions
-See [`.github/workflows/update-dataset.yml`](.github/workflows/update-dataset.yml) for a weekly scheduled CI check (configure `KAGGLE_USERNAME` and `KAGGLE_KEY` secrets).
+See [`.github/workflows/update-dataset.yml`](.github/workflows/update-dataset.yml) for a weekly scheduled CI check.
 
 ---
 
-## 3. Checking Peer-Reviewed Journal Publication Status
+## 3. Running the ETL Pipeline
 
-Although the Kaggle CSV includes a `published` column, it is **frozen at scrape time** and omits **journal names** and **publication dates**. `scripts/check_publications.py` solves this with a 3-tier verification pipeline backed by a resumable SQLite cache (`data/cache/publication_status.sqlite`):
+`scripts/run_etl.py` streams the 1.31 GB CSV in memory-bounded chunks, writes zstd Parquet tables to `data/processed/`, and exports the compact JSON contract consumed by `web/`:
 
-1. **bioRxiv / medRxiv Official `pubs` API** (bulk date-range harvesting at 100 records/request, or single-DOI lookup) — returns `published_doi`, `published_journal`, and `published_date`.
-2. **Crossref REST API fallback** (`relation.is-preprint-of`) — catches peer-reviewed links not yet indexed by bioRxiv.
-3. **OpenAlex Batch API fallback** (50 DOIs per request) — additional journal venue discovery.
+```bash
+# Full ETL: raw CSV -> Parquet tables -> web/data/dashboard_data.json
+.venv/bin/python scripts/run_etl.py
 
-> **API Terms & Licensing Note:** Before bulk-querying bioRxiv/medRxiv endpoints, review the terms at [api.biorxiv.org](https://api.biorxiv.org/) and [about-biorxiv](https://www.biorxiv.org/content/about-biorxiv), and respect individual paper Creative Commons licenses. Pass `--mailto your@email.com` to use Crossref and OpenAlex polite pools.
+# Fast JSON re-aggregation from existing canonical Parquet (~2 seconds)
+.venv/bin/python scripts/run_etl.py --skip-parquet
+```
+
+---
+
+## 4. Viewing & Deploying the Web Dashboard (`web/`)
+
+### Preview Locally
+```bash
+python3 web/serve.py --port 8080
+# Open http://127.0.0.1:8080/
+```
+
+### Deploy on GitHub Pages
+[`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) automatically publishes `web/` to GitHub Pages whenever `web/` changes on `main`. After pushing your repository to GitHub:
+1. Open **Settings → Pages** on GitHub (or run the `gh api` command below).
+2. Set **Build and deployment → Source** to **GitHub Actions**.
+
+```bash
+# Enable GitHub Actions-based Pages deployment for your repo
+gh api -X POST repos/<your-username>/<your-repo>/pages -f build_type=workflow
+```
+
+---
+
+## 5. Checking Peer-Reviewed Journal Publication Status
+
+`scripts/check_publications.py` resolves `is_published`, `published_doi`, `published_journal`, `published_date`, and `days_to_publication` using a 3-tier verification pipeline backed by a resumable SQLite cache (`data/cache/publication_status.sqlite`):
+
+1. **bioRxiv / medRxiv Official `pubs` API** (bulk date-range harvesting at 100 records/request, or single-DOI lookup).
+2. **Crossref REST API fallback** (`relation.is-preprint-of`).
+3. **OpenAlex Batch API fallback** (50 DOIs per request).
+
+> **API Terms & Licensing Note:** Review [api.biorxiv.org](https://api.biorxiv.org/) and [about-biorxiv](https://www.biorxiv.org/content/about-biorxiv), and respect individual paper Creative Commons licenses.
 
 ```bash
 # Check individual DOIs immediately
 .venv/bin/python scripts/check_publications.py doi 10.1101/000141 10.1101/000042
 
-# Fast bulk-harvest of newly published preprints (100 records per request)
+# Bulk-harvest newly published preprints (100 records per request)
 .venv/bin/python scripts/check_publications.py bulk-harvest \
   --server both --start-date 2025-01-01 --end-date 2026-11-22
 
-# Verify a slice of the dataset and export enriched Parquet + summary JSON
+# Verify a filtered slice and export enriched Parquet + summary JSON
 .venv/bin/python scripts/check_publications.py verify \
   --server medrxiv --since 2024-01-01 --limit 200 \
   --crossref-fallback --mailto your.email@example.com
-
-# Inspect SQLite cache coverage
-.venv/bin/python scripts/check_publications.py stats
 ```
-
----
-
-## 4. Materializing Cleaned Parquet Tables & Building the Web Dashboard
-
-`scripts/build_report.py` streams the 1.31 GB CSV in memory-bounded chunks, writes compressed zstd Parquet tables to `data/processed/`, and builds the static interactive dashboard in `docs/index.html` (ready for GitHub Pages):
-
-```bash
-# Full build: clean CSV -> Parquet tables -> interactive dashboard in docs/
-.venv/bin/python scripts/build_report.py
-
-# Fast rebuild of the dashboard from existing canonical Parquet
-.venv/bin/python scripts/build_report.py --skip-parquet
-
-# Preview locally at http://127.0.0.1:8080/
-.venv/bin/python scripts/build_report.py --skip-parquet --serve --port 8080
-```
-
----
-
-## 5. Analysis Plan
-
-See [`docs/analysis_plan.md`](docs/analysis_plan.md) for the full schema audit, data quality findings, phased analysis plan, 19 prioritized research questions, and 15 visualization blueprints.

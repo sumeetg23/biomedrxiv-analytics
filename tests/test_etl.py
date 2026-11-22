@@ -1,4 +1,4 @@
-"""Unit tests for Parquet materialization, dashboard aggregations, and HTML output."""
+"""Unit tests for the ETL pipeline (Parquet materialization + JSON data contract)."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from pathlib import Path
 import pandas as pd
 
 from biomedrxiv.config import ProjectPaths
-from biomedrxiv.dashboard_template import write_static_dashboard
-from biomedrxiv.reporting import (
-    build_dashboard_payload,
+from biomedrxiv.etl import (
+    build_analytics_payload,
+    export_dashboard_json,
     materialize_parquet_tables,
     wilson_ci_pct,
 )
@@ -23,7 +23,7 @@ def test_wilson_ci_bounds() -> None:
     assert wilson_ci_pct(0, 0) == (0.0, 0.0, 0.0)
 
 
-def test_end_to_end_materialize_and_dashboard_generation(tmp_path: Path) -> None:
+def test_etl_materializes_parquet_and_exports_json_contract(tmp_path: Path) -> None:
     paths = ProjectPaths.from_root(tmp_path / "proj")
     paths.ensure_directories()
 
@@ -81,7 +81,7 @@ def test_end_to_end_materialize_and_dashboard_generation(tmp_path: Path) -> None
     assert (paths.processed_dir / "preprints_versions.parquet").exists()
     assert (paths.processed_dir / "preprints_canonical.parquet").exists()
 
-    payload = build_dashboard_payload(paths, audit=audit)
+    payload = build_analytics_payload(paths, audit=audit)
     assert payload["kpis"]["all"]["unique_dois"] == 3
     assert payload["kpis"]["biorxiv"]["unique_dois"] == 2
     assert payload["kpis"]["medrxiv"]["unique_dois"] == 1
@@ -91,10 +91,7 @@ def test_end_to_end_materialize_and_dashboard_generation(tmp_path: Path) -> None
     assert kw_totals["alphafold"] == 1
     assert kw_totals["covid_sarscov2"] == 1
 
-    html_path, json_path = write_static_dashboard(payload, tmp_path / "docs")
-    assert html_path.exists()
+    json_path = export_dashboard_json(payload, tmp_path / "web" / "data" / "dashboard_data.json")
     assert json_path.exists()
-    assert (tmp_path / "docs" / ".nojekyll").exists()
-    assert "__DASHBOARD_JSON__" not in html_path.read_text(encoding="utf-8")
     loaded = json.loads(json_path.read_text(encoding="utf-8"))
     assert loaded["kpis"]["all"]["unique_dois"] == 3

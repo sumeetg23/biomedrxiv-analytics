@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BioRxiv &amp; MedRxiv Preprint Analytics Dashboard</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8" defer></script>
+  <script src="./js/dashboard.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>BioRxiv &amp; MedRxiv Preprint Analytics</h1>
+      <p id="header-subtitle">Loading dataset metadata...</p>
+    </div>
+    <div class="controls">
+      <div class="segmented" role="group" aria-label="Server filter">
+        <button class="active" data-server="all">All Preprints</button>
+        <button data-server="biorxiv">bioRxiv</button>
+        <button data-server="medrxiv">medRxiv</button>
+      </div>
+      <button id="theme-toggle" class="icon-btn" title="Toggle dark/light mode">Dark Mode</button>
+    </div>
+  </header>
+
+  <nav class="nav-tabs" role="tablist">
+    <button class="tab-btn active" data-tab="overview">1. Overview &amp; Growth</button>
+    <button class="tab-btn" data-tab="peer-review">2. Peer Review &amp; Journals</button>
+    <button class="tab-btn" data-tab="frontiers">3. Research Frontiers (NLP)</button>
+    <button class="tab-btn" data-tab="open-science">4. Open Science &amp; Teams</button>
+    <button class="tab-btn" data-tab="institutions">5. Institutions &amp; Audit</button>
+  </nav>
+
+  <main class="container">
+    <div id="load-error" class="callout callout-warn" style="display:none;"></div>
+    <section class="kpi-grid" id="kpi-grid"></section>
+
+    <!-- TAB 1: OVERVIEW -->
+    <section class="tab-panel active" id="tab-overview">
+      <div class="callout" id="audit-callout"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Monthly Preprint Submissions (2013 – 2026)</h2>
+            <p class="subtitle">Deduplicated unique DOIs by first posting date (v1), annotated with medRxiv launch and COVID-19 surge.</p>
+          </div>
+        </div>
+        <div id="chart-monthly" class="plot"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Top 20 Subject Categories</h2>
+              <p class="subtitle">Cleaned &amp; normalized categories (115 raw strings &rarr; 76 canonical). Hover for mature-cohort publication rate.</p>
+            </div>
+          </div>
+          <div id="chart-categories" class="plot plot-tall"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Annual Volume &amp; Snapshot Publication Rate</h2>
+              <p class="subtitle">Notice right-censoring in 2025–2026: recent preprints are still undergoing peer review.</p>
+            </div>
+          </div>
+          <div id="chart-annual" class="plot plot-tall"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: PEER REVIEW -->
+    <section class="tab-panel" id="tab-peer-review">
+      <div class="callout callout-warn">
+        <strong>Methodological Guardrail (Right-Censoring):</strong> Peer review typically takes 6–18+ months.
+        Aggregate comparisons below restrict to <strong>mature cohorts (first posted &le; 2024)</strong> so recent 2025–2026 submissions do not artificially depress conversion rates.
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Cohort Publication Rate Heatmap (Posting Year &times; Top 18 Categories)</h2>
+            <p class="subtitle">Percentage of unique DOIs linked to a peer-reviewed journal DOI. Exposes both disciplinary differences and right-censoring.</p>
+          </div>
+        </div>
+        <div id="chart-heatmap" class="plot plot-tall"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Do Revisions Predict Peer-Reviewed Publication?</h2>
+              <p class="subtitle">Mature cohorts (&le; 2024) with Wilson 95% confidence intervals. Revising a preprint strongly signals active peer review.</p>
+            </div>
+          </div>
+          <div id="chart-revisions" class="plot"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Top Publishers Absorbing Preprints</h2>
+              <p class="subtitle">Mapped via Crossref DOI prefix of published journal articles (updates with top-bar server filter).</p>
+            </div>
+          </div>
+          <div id="chart-publishers" class="plot"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Publication Bias Check: New vs. Confirmatory vs. Contradictory Results</h2>
+            <p class="subtitle">bioRxiv mature cohorts (&le; 2024) with Wilson 95% confidence intervals.</p>
+          </div>
+        </div>
+        <div id="chart-type-bias" class="plot plot-compact"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: RESEARCH FRONTIERS -->
+    <section class="tab-panel" id="tab-frontiers">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Emerging Biomedical Research Frontiers (2015 – 2026)</h2>
+            <p class="subtitle">Percentage of quarterly unique preprints mentioning each technology or topic in title/abstract. Click legend items to isolate curves.</p>
+          </div>
+        </div>
+        <div id="chart-frontiers" class="plot plot-tall"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Total Preprints by Tracked Frontier Topic</h2>
+            <p class="subtitle">Cumulative unique DOI mentions since 2015 across bioRxiv &amp; medRxiv.</p>
+          </div>
+        </div>
+        <div id="chart-frontiers-bar" class="plot plot-compact"></div>
+      </div>
+    </section>
+
+    <!-- TAB 4: OPEN SCIENCE & TEAMS -->
+    <section class="tab-panel" id="tab-open-science">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Open Science &amp; Creative Commons License Evolution (2014 – 2026)</h2>
+            <p class="subtitle">Share of unique preprints by normalized license type (updates with top-bar server filter).</p>
+          </div>
+        </div>
+        <div id="chart-licenses" class="plot"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Collaboration &amp; Team Size Over Time</h2>
+              <p class="subtitle">Median author count per preprint with interquartile range (25th–75th percentile).</p>
+            </div>
+          </div>
+          <div id="chart-team-trend" class="plot"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2>Team Size vs. Peer-Reviewed Publication Rate</h2>
+              <p class="subtitle">Mature cohorts (&le; 2024) with Wilson 95% confidence intervals.</p>
+            </div>
+          </div>
+          <div id="chart-team-pub" class="plot"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Preprint Withdrawal Rate Timeline (Per 1,000 Preprints)</h2>
+            <p class="subtitle">Half-year withdrawal rate comparing bioRxiv vs. medRxiv (highlights 2020–2021 COVID-19 surge).</p>
+          </div>
+        </div>
+        <div id="chart-withdrawals" class="plot plot-compact"></div>
+      </div>
+    </section>
+
+    <!-- TAB 5: INSTITUTIONS & AUDIT -->
+    <section class="tab-panel" id="tab-institutions">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Top 30 Corresponding Institutions: Volume vs. Mature-Cohort Publication Rate</h2>
+            <p class="subtitle">Bubble size encodes median team size. Raw institutional strings (not yet ROR-deduplicated).</p>
+          </div>
+        </div>
+        <div id="chart-institutions" class="plot"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2>Top 30 Corresponding Institutions Table</h2>
+            <p class="subtitle">Filter by institution name.</p>
+          </div>
+          <input type="search" id="inst-search" class="search-input" placeholder="Search institutions..." />
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Corresponding Institution</th>
+                <th class="num">Total Preprints</th>
+                <th class="num">Mature (&le; 2024)</th>
+                <th class="num">Mature Pub Rate</th>
+                <th class="num">Median Authors</th>
+              </tr>
+            </thead>
+            <tbody id="inst-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Data Quality &amp; Reproducibility Provenance</h2>
+        <div id="provenance-grid" class="kpi-grid provenance-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div id="footer-provenance">Dataset: m0delcrafter/bio-and-med-dataset</div>
+    <div>Data contract: <code>web/data/dashboard_data.json</code> (generated by <code>scripts/run_etl.py</code>)</div>
+  </footer>
+</body>
+</html>

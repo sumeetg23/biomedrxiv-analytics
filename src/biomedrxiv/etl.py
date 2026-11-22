@@ -1,7 +1,11 @@
-"""Materialize cleaned Parquet tables and compute dashboard analytics payloads.
+"""ETL pipeline: stream-clean raw Kaggle CSV into Parquet tables and export aggregated metrics.
 
-Designed to handle the full 1.31 GB / 605,767-row Bio&Med-Rxiv CSV safely with
-bounded memory using chunked streaming into PyArrow Parquet files.
+Clean separation of concerns:
+- This module is strictly data processing (ETL). It owns NO HTML, CSS, or JS.
+- Outputs:
+  1. ``data/processed/preprints_versions.parquet`` (cleaned version-level postings)
+  2. ``data/processed/preprints_canonical.parquet`` (deduplicated unique-DOI table)
+  3. ``web/data/dashboard_data.json`` (compact JSON data contract consumed by ``web/``)
 """
 
 from __future__ import annotations
@@ -86,7 +90,10 @@ FRONTIER_KEYWORDS: dict[str, tuple[str, re.Pattern[str]]] = {
     ),
     "deep_learning": (
         "Deep Learning / Neural Nets",
-        re.compile(r"\b(?:deep learning|neural network|convolutional neural|transformer model)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:deep learning|neural network|convolutional neural|transformer model)\b",
+            re.IGNORECASE,
+        ),
     ),
     "crispr": (
         "CRISPR / Gene Editing",
@@ -94,7 +101,10 @@ FRONTIER_KEYWORDS: dict[str, tuple[str, re.Pattern[str]]] = {
     ),
     "alphafold": (
         "AlphaFold / Protein Structure AI",
-        re.compile(r"\b(?:alphafold|rosettafold|esmfold|protein structure prediction)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:alphafold|rosettafold|esmfold|protein structure prediction)\b",
+            re.IGNORECASE,
+        ),
     ),
     "llm_genai": (
         "LLMs & Generative AI",
@@ -105,7 +115,10 @@ FRONTIER_KEYWORDS: dict[str, tuple[str, re.Pattern[str]]] = {
     ),
     "spatial_omics": (
         "Spatial Transcriptomics",
-        re.compile(r"\b(?:spatial transcriptom|spatial omics|visium|merfish|seqfish)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:spatial transcriptom|spatial omics|visium|merfish|seqfish)\b",
+            re.IGNORECASE,
+        ),
     ),
     "mrna_vaccine": (
         "mRNA Vaccines / Therapeutics",
@@ -118,17 +131,6 @@ FRONTIER_KEYWORDS: dict[str, tuple[str, re.Pattern[str]]] = {
 }
 
 MATURE_COHORT_MAX_YEAR = 2024
-
-
-def map_publisher_from_doi(published_doi: Any) -> tuple[str | None, str | None]:
-    """Extract DOI prefix and human-readable publisher name."""
-    if published_doi is None or (isinstance(published_doi, float) and pd.isna(published_doi)):
-        return None, None
-    text = str(published_doi).strip().lower()
-    if "/" not in text:
-        return None, None
-    prefix = text.split("/", 1)[0]
-    return prefix, PUBLISHER_PREFIX_MAP.get(prefix, f"Other ({prefix})")
 
 
 def wilson_ci_pct(successes: int, total: int, z: float = 1.959964) -> tuple[float, float, float]:
@@ -171,8 +173,16 @@ def _enrich_chunk(chunk: pd.DataFrame) -> pd.DataFrame:
     """Clean a raw CSV chunk and attach engineered counts, publisher, and keyword flags."""
     cleaned = clean_preprints_dataframe(chunk)
 
-    title_str = cleaned["title"].fillna("").astype(str) if "title" in cleaned.columns else pd.Series("", index=cleaned.index)
-    abs_str = cleaned["abstract"].fillna("").astype(str) if "abstract" in cleaned.columns else pd.Series("", index=cleaned.index)
+    title_str = (
+        cleaned["title"].fillna("").astype(str)
+        if "title" in cleaned.columns
+        else pd.Series("", index=cleaned.index)
+    )
+    abs_str = (
+        cleaned["abstract"].fillna("").astype(str)
+        if "abstract" in cleaned.columns
+        else pd.Series("", index=cleaned.index)
+    )
     combined_text = title_str + " " + abs_str
 
     cleaned["title_word_count"] = title_str.str.split().str.len().astype("int32")
@@ -247,10 +257,7 @@ def materialize_parquet_tables(
     chunksize: int = 75_000,
     write_versions_parquet: bool = True,
 ) -> dict[str, Any]:
-    """Stream-clean the raw CSV into version-level and canonical DOI-level Parquet tables.
-
-    Returns a dictionary of materialization metadata and raw-vs-clean quality audit counts.
-    """
+    """Stream-clean raw CSV into version-level and canonical DOI-level Parquet tables."""
     paths.ensure_directories()
     source_csv = csv_path or (paths.current_link / DEFAULT_CSV_NAME)
     if not source_csv.exists():
@@ -292,13 +299,11 @@ def materialize_parquet_tables(
             raw_published_rows += int(enriched["snapshot_is_published"].sum())
 
             if write_versions_parquet:
-                # Drop raw redundant text columns only? Keep all cleaned + raw columns for full fidelity
                 table = pa.Table.from_pandas(enriched, preserve_index=False)
                 if writer is None:
                     schema_ref = table.schema
                     writer = pq.ParquetWriter(versions_out, schema_ref, compression="zstd")
                 else:
-                    # Align schema in case a chunk had all-null column inferred as null type
                     table = table.cast(schema_ref, safe=False)
                 writer.write_table(table)
 
@@ -359,11 +364,11 @@ def materialize_parquet_tables(
         "withdrawn_version_rows": int(withdrawn_version_rows),
         "withdrawn_unique_dois": int(canonical["ever_withdrawn"].sum()),
         "raw_row_publication_rate_pct": round((raw_published_rows / max(raw_row_count, 1)) * 100.0, 2),
-        "dedup_doi_publication_rate_pct": round(float(canonical["snapshot_is_published"].mean() * 100.0), 2),
+        "dedup_doi_publication_rate_pct": round(
+            float(canonical["snapshot_is_published"].mean() * 100.0), 2
+        ),
         "versions_parquet": (
-            versions_out.relative_to(paths.root).as_posix()
-            if write_versions_parquet
-            else None
+            versions_out.relative_to(paths.root).as_posix() if write_versions_parquet else None
         ),
         "versions_parquet_mb": round(versions_out.stat().st_size / (1024 * 1024), 2)
         if write_versions_parquet and versions_out.exists()
@@ -377,18 +382,18 @@ def materialize_parquet_tables(
     return audit
 
 
-def build_dashboard_payload(
+def build_analytics_payload(
     paths: ProjectPaths,
     *,
     canonical_df: pd.DataFrame | None = None,
     audit: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Compute compact, publication-grade analytics JSON powering the static web dashboard."""
+    """Compute pre-aggregated analytics JSON from ``preprints_canonical.parquet``."""
     canonical_path = paths.processed_dir / "preprints_canonical.parquet"
     if canonical_df is None:
         if not canonical_path.exists():
             raise FileNotFoundError(
-                f"Canonical Parquet not found at {canonical_path}. Run materialize first."
+                f"Canonical Parquet not found at {canonical_path}. Run scripts/run_etl.py first."
             )
         df = pd.read_parquet(canonical_path)
     else:
@@ -400,14 +405,22 @@ def build_dashboard_payload(
             audit = json.loads(audit_path.read_text(encoding="utf-8"))
         else:
             audit = {
-                "raw_row_count": int(df["version_row_count"].sum()) if "version_row_count" in df.columns else int(len(df)),
+                "raw_row_count": int(df["version_row_count"].sum())
+                if "version_row_count" in df.columns
+                else int(len(df)),
                 "unique_doi_count": int(len(df)),
-                "duplicate_version_rows": int(df["version_row_count"].sum() - len(df)) if "version_row_count" in df.columns else 0,
+                "duplicate_version_rows": int(df["version_row_count"].sum() - len(df))
+                if "version_row_count" in df.columns
+                else 0,
                 "raw_unique_categories": int(df["category_clean"].nunique()),
                 "clean_unique_categories": int(df["category_clean"].nunique()),
                 "withdrawn_unique_dois": int(df["ever_withdrawn"].sum()),
-                "raw_row_publication_rate_pct": round(float(df["snapshot_is_published"].mean() * 100), 2),
-                "dedup_doi_publication_rate_pct": round(float(df["snapshot_is_published"].mean() * 100), 2),
+                "raw_row_publication_rate_pct": round(
+                    float(df["snapshot_is_published"].mean() * 100), 2
+                ),
+                "dedup_doi_publication_rate_pct": round(
+                    float(df["snapshot_is_published"].mean() * 100), 2
+                ),
             }
 
     registry_meta: dict[str, Any] = {}
@@ -438,7 +451,7 @@ def build_dashboard_payload(
 
     mature = df[df["year"] <= MATURE_COHORT_MAX_YEAR]
 
-    # 1. KPI summary per server filter (all, biorxiv, medrxiv)
+    # 1. KPI summary per server slice
     kpis: dict[str, Any] = {}
     for key, subset in [
         ("all", df),
@@ -464,9 +477,7 @@ def build_dashboard_payload(
             "avg_versions": round(float(subset["num_versions"].mean()), 2) if len(subset) else 0.0,
             "max_versions": int(subset["num_versions"].max()) if len(subset) else 0,
             "withdrawn_count": int(subset["ever_withdrawn"].sum()),
-            "withdrawn_per_1k": round(
-                float(subset["ever_withdrawn"].mean() * 1000.0), 2
-            )
+            "withdrawn_per_1k": round(float(subset["ever_withdrawn"].mean() * 1000.0), 2)
             if len(subset)
             else 0.0,
             "unique_categories": int(subset["category_clean"].nunique()),
@@ -474,7 +485,7 @@ def build_dashboard_payload(
             "date_max": str(subset["first_posted_date"].max().date()) if len(subset) else "",
         }
 
-    # 2. Monthly volume (2013-11 .. 2026-10)
+    # 2. Monthly & annual growth
     monthly_piv = (
         df.groupby(["month", "server_clean"], observed=True)
         .size()
@@ -494,7 +505,6 @@ def build_dashboard_payload(
         "cumulative_total": monthly_piv["cumulative_total"].astype(int).tolist(),
     }
 
-    # Annual summary & YoY growth
     annual_piv = (
         df.groupby(["year", "server_clean"], observed=True)
         .size()
@@ -514,7 +524,7 @@ def build_dashboard_payload(
         "pub_rate_pct": [round(float(x), 2) for x in annual_pub.fillna(0.0).tolist()],
     }
 
-    # 3. Top categories per server slice (with mature-cohort publication rate)
+    # 3. Top 20 categories per server
     top_categories: dict[str, list[dict[str, Any]]] = {}
     for key, subset in [
         ("all", df),
@@ -543,15 +553,12 @@ def build_dashboard_payload(
             for _, r in top20.iterrows()
         ]
 
-    # 4. Cohort Publication Heatmap (Posting Year 2015..2026 x Top 18 Categories)
-    top18_cats = (
-        df["category_clean"].value_counts().head(18).index.tolist()
-    )
+    # 4. Cohort Publication Heatmap
+    top18_cats = df["category_clean"].value_counts().head(18).index.tolist()
     heat_years = sorted(int(y) for y in df["year"].dropna().unique() if y >= 2015)
     heat_sub = df[df["category_clean"].isin(top18_cats) & df["year"].isin(heat_years)]
-    heat_piv = (
-        heat_sub.groupby(["category_clean", "year"])["snapshot_is_published"]
-        .agg(["mean", "size"])
+    heat_piv = heat_sub.groupby(["category_clean", "year"])["snapshot_is_published"].agg(
+        ["mean", "size"]
     )
     z_matrix: list[list[float | None]] = []
     n_matrix: list[list[int]] = []
@@ -577,7 +584,7 @@ def build_dashboard_payload(
         "counts": n_matrix,
     }
 
-    # 5. Revision Count vs Peer-Review Publication Rate (Mature cohorts <= 2024)
+    # 5. Revisions vs Publication Rate (mature cohorts)
     revision_buckets = ["1", "2", "3", "4", "5+"]
     rev_col = np.where(mature["num_versions"] >= 5, "5+", mature["num_versions"].astype(str))
     mature_rev = mature.assign(rev_bucket=rev_col)
@@ -602,7 +609,7 @@ def build_dashboard_payload(
             )
         revisions_vs_pub[srv] = rows_out
 
-    # 6. Top Publishers Absorbing Preprints (from DOI prefix)
+    # 6. Top Publishers
     pub_only = df[df["snapshot_is_published"] & df["publisher_name"].notna()]
     top_publishers: dict[str, list[dict[str, Any]]] = {}
     for key, subset in [
@@ -610,7 +617,6 @@ def build_dashboard_payload(
         ("biorxiv", pub_only[pub_only["server_clean"] == "biorxiv"]),
         ("medrxiv", pub_only[pub_only["server_clean"] == "medrxiv"]),
     ]:
-        # Group long-tail "Other (10.xxxx)" into a single bucket for clean chart display
         mapped = subset["publisher_name"].map(
             lambda x: "Other Publishers" if str(x).startswith("Other (") else str(x)
         )
@@ -626,7 +632,7 @@ def build_dashboard_payload(
             for pub_name, cnt in top15.items()
         ]
 
-    # 7. Open Science & License Evolution (2014..2026, 100% stacked)
+    # 7. License evolution
     lic_order = ["cc_by", "cc_by_nc_nd", "cc_by_nc", "cc_by_nd", "cc_no", "cc0", "other"]
     lic_labels = {
         "cc_by": "CC-BY (Most Open)",
@@ -650,16 +656,20 @@ def build_dashboard_payload(
             if str(x).startswith("cc0")
             else (str(x) if str(x) in lic_order else "other")
         )
-        piv = sub.groupby(["year", "lic_grp"]).size().unstack(fill_value=0).reindex(lic_years, fill_value=0)
+        piv = (
+            sub.groupby(["year", "lic_grp"])
+            .size()
+            .unstack(fill_value=0)
+            .reindex(lic_years, fill_value=0)
+        )
         row_totals = piv.sum(axis=1).replace(0, 1)
         series_map = {}
         for lk in lic_order:
             counts = piv[lk] if lk in piv.columns else pd.Series(0, index=lic_years)
-            pcts = (counts / row_totals * 100.0).round(2)
-            series_map[lk] = pcts.tolist()
+            series_map[lk] = (counts / row_totals * 100.0).round(2).tolist()
         license_evolution["by_server"][key] = series_map
 
-    # 8. Emerging Research Frontier Keyword Adoption (% of quarterly abstracts, 2015Q1..2026Q4)
+    # 8. Emerging Research Frontier Keyword Adoption
     q_df = df[df["year"] >= 2015]
     q_totals = q_df.groupby("quarter").size().sort_index()
     quarters = q_totals.index.tolist()
@@ -681,7 +691,7 @@ def build_dashboard_payload(
         )
     frontier_trends = {"quarters": quarters, "series": frontier_series}
 
-    # 9. Withdrawal Rate Timeline (per 1,000 preprints by half-year, 2016-H1 .. 2026-H2)
+    # 9. Withdrawals timeline
     wd_df = df[df["year"] >= 2016]
     half_years = sorted(wd_df["half_year"].dropna().unique().tolist())
     withdrawals_timeline: dict[str, Any] = {"periods": half_years}
@@ -701,7 +711,7 @@ def build_dashboard_payload(
                 counts.append(0)
         withdrawals_timeline[srv] = {"rate_per_1k": rates, "count": counts}
 
-    # 10. Collaboration & Team Size Trends + Publication Rate by Team Size
+    # 10. Collaboration & Team Size Trends
     team_years = sorted(int(y) for y in df["year"].dropna().unique() if y >= 2014)
     team_trends: dict[str, Any] = {"years": team_years}
     for srv in ("biorxiv", "medrxiv"):
@@ -728,7 +738,7 @@ def build_dashboard_payload(
             {"bucket": b, "count": n, "pub_rate_pct": rate, "ci_low": lo, "ci_high": hi}
         )
 
-    # 11. Preprint Type & Publication Bias (bioRxiv mature cohorts where types are recorded)
+    # 11. Preprint Type Bias (bioRxiv mature cohorts)
     type_labels = {
         "new results": "New Results",
         "confirmatory results": "Confirmatory Results",
@@ -745,7 +755,7 @@ def build_dashboard_payload(
             {"type": tlabel, "count": n, "pub_rate_pct": rate, "ci_low": lo, "ci_high": hi}
         )
 
-    # 12. Top 30 Corresponding Institutions (volume + mature-cohort publication rate)
+    # 12. Top 30 Institutions
     inst_all = df.dropna(subset=["institution_clean"])
     inst_counts = inst_all["institution_clean"].value_counts().head(30)
     inst_mat = mature.dropna(subset=["institution_clean"])
@@ -792,3 +802,10 @@ def build_dashboard_payload(
         "type_bias": type_bias,
         "top_institutions": top_institutions,
     }
+
+
+def export_dashboard_json(payload: dict[str, Any], output_path: Path) -> Path:
+    """Write the compact analytics JSON contract consumed by the web dashboard."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return output_path
