@@ -515,13 +515,33 @@ def build_analytics_payload(
         if col not in annual_piv.columns:
             annual_piv[col] = 0
     annual_piv["total"] = annual_piv["biorxiv"] + annual_piv["medrxiv"]
-    annual_pub = df.groupby("year")["snapshot_is_published"].mean().reindex(annual_piv.index) * 100.0
+    annual_pub_all = df.groupby("year")["snapshot_is_published"].mean().reindex(annual_piv.index) * 100.0
+    annual_pub_bio = (
+        df[df["server_clean"] == "biorxiv"]
+        .groupby("year")["snapshot_is_published"]
+        .mean()
+        .reindex(annual_piv.index)
+        * 100.0
+    )
+    annual_pub_med = (
+        df[df["server_clean"] == "medrxiv"]
+        .groupby("year")["snapshot_is_published"]
+        .mean()
+        .reindex(annual_piv.index)
+        * 100.0
+    )
     annual_summary = {
         "years": [int(y) for y in annual_piv.index.tolist()],
         "biorxiv": annual_piv["biorxiv"].astype(int).tolist(),
         "medrxiv": annual_piv["medrxiv"].astype(int).tolist(),
         "total": annual_piv["total"].astype(int).tolist(),
-        "pub_rate_pct": [round(float(x), 2) for x in annual_pub.fillna(0.0).tolist()],
+        "pub_rate_pct": [round(float(x), 2) for x in annual_pub_all.fillna(0.0).tolist()],
+        "biorxiv_pub_rate_pct": [
+            round(float(x), 2) if pd.notna(x) else None for x in annual_pub_bio.tolist()
+        ],
+        "medrxiv_pub_rate_pct": [
+            round(float(x), 2) if pd.notna(x) else None for x in annual_pub_med.tolist()
+        ],
     }
 
     # 3. Top 20 categories per server
@@ -783,11 +803,129 @@ def build_analytics_payload(
             }
         )
 
+    # 13. Year-partitioned additive cubes for client-side dynamic year-range filtering
+    available_years = sorted(int(y) for y in df["year"].dropna().unique().tolist())
+    top50_inst_set = set(inst_all["institution_clean"].value_counts().head(50).index.tolist())
+    df_cube = df.copy()
+    df_cube["rev_bucket"] = np.where(
+        df_cube["num_versions"] >= 5, "5+", df_cube["num_versions"].astype(str)
+    )
+    df_cube["team_bucket"] = np.where(
+        df_cube["author_count"] > 0,
+        df_cube["author_count"].map(_team_size_bucket),
+        None,
+    )
+    df_cube["publisher_clean_grp"] = np.where(
+        df_cube["snapshot_is_published"] & df_cube["publisher_name"].notna(),
+        df_cube["publisher_name"].map(
+            lambda x: "Other Publishers" if str(x).startswith("Other (") else str(x)
+        ),
+        None,
+    )
+
+    by_year: dict[str, dict[str, Any]] = {}
+    for yr in available_years:
+        yr_str = str(yr)
+        by_year[yr_str] = {}
+        yr_df = df_cube[df_cube["year"] == yr]
+        for srv in ("biorxiv", "medrxiv"):
+            sub = yr_df[yr_df["server_clean"] == srv]
+            if sub.empty:
+                continue
+
+            # Author histogram capped at 31 ("31+") for exact median across any year window
+            pos_auth = sub.loc[sub["author_count"] > 0, "author_count"]
+            capped_auth = np.minimum(pos_auth.to_numpy(dtype=np.int64), 31)
+            uniq_a, cnt_a = np.unique(capped_auth, return_counts=True)
+            author_hist = {str(int(k)): int(v) for k, v in zip(uniq_a, cnt_a, strict=False)}
+
+            kpi_slice = {
+                "unique_dois": int(len(sub)),
+                "version_rows": int(sub["version_row_count"].sum())
+                if "version_row_count" in sub.columns
+                else int(len(sub)),
+                "published_count": int(sub["snapshot_is_published"].sum()),
+                "withdrawn_count": int(sub["ever_withdrawn"].sum()),
+                "version_sum": int(sub["num_versions"].sum()),
+                "max_versions": int(sub["num_versions"].max()),
+                "date_min": str(sub["first_posted_date"].min().date()),
+                "date_max": str(sub["first_posted_date"].max().date()),
+                "author_hist": author_hist,
+            }
+
+            # Categories: [count, published_count, version_sum, author_sum]
+            cat_grp = sub.dropna(subset=["category_clean"]).groupby("category_clean").agg(
+                cnt=("normalized_doi", "size"),
+                pub=("snapshot_is_published", "sum"),
+                vsum=("num_versions", "sum"),
+                asum=("author_count", "sum"),
+            )
+            cat_map = {
+                str(cat).title(): [int(r.cnt), int(r.pub), int(r.vsum), int(r.asum)]
+                for cat, r in cat_grp.iterrows()
+            }
+
+            # Publishers: {publisher: published_count}
+            pub_vc = sub["publisher_clean_grp"].dropna().value_counts()
+            pub_map = {str(k): int(v) for k, v in pub_vc.items()}
+
+            # Revisions: {bucket: [count, published_count]}
+            rev_grp = sub.groupby("rev_bucket")["snapshot_is_published"].agg(["size", "sum"])
+            rev_map = {
+                str(b): [int(r["size"]), int(r["sum"])] for b, r in rev_grp.iterrows()
+            }
+
+            # Team size buckets: {bucket: [count, published_count]}
+            team_grp = (
+                sub.dropna(subset=["team_bucket"])
+                .groupby("team_bucket")["snapshot_is_published"]
+                .agg(["size", "sum"])
+            )
+            team_map = {
+                str(b): [int(r["size"]), int(r["sum"])] for b, r in team_grp.iterrows()
+            }
+
+            # Preprint type bias (bioRxiv types)
+            type_grp = (
+                sub[sub["type_clean"].isin(type_labels.keys())]
+                .groupby("type_clean")["snapshot_is_published"]
+                .agg(["size", "sum"])
+            )
+            type_map = {
+                type_labels[str(t)]: [int(r["size"]), int(r["sum"])]
+                for t, r in type_grp.iterrows()
+            }
+
+            # Top 50 institutions: {inst: [count, published_count, author_sum]}
+            inst_sub = sub[sub["institution_clean"].isin(top50_inst_set)]
+            inst_grp = inst_sub.groupby("institution_clean").agg(
+                cnt=("normalized_doi", "size"),
+                pub=("snapshot_is_published", "sum"),
+                asum=("author_count", "sum"),
+            )
+            inst_map = {
+                str(inst): [int(r.cnt), int(r.pub), int(r.asum)]
+                for inst, r in inst_grp.iterrows()
+            }
+
+            by_year[yr_str][srv] = {
+                "kpi": kpi_slice,
+                "categories": cat_map,
+                "publishers": pub_map,
+                "revisions": rev_map,
+                "team_buckets": team_map,
+                "types": type_map,
+                "institutions": inst_map,
+            }
+
     return {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "dataset_provenance": registry_meta,
         "quality_audit": audit,
+        "available_years": available_years,
+        "mature_cohort_cutoff_year": MATURE_COHORT_MAX_YEAR,
         "kpis": kpis,
+        "by_year": by_year,
         "monthly_growth": monthly_growth,
         "annual_summary": annual_summary,
         "top_categories": top_categories,

@@ -79,6 +79,73 @@ body {
   flex-wrap: wrap;
 }
 
+.year-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.25rem 0.55rem;
+  flex-wrap: wrap;
+}
+
+.year-filter label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.year-filter select {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.22rem 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.year-sep {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.year-presets {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-left: 0.25rem;
+  padding-left: 0.4rem;
+  border-left: 1px solid var(--border);
+}
+
+.preset-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.2rem 0.48rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-btn:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.preset-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .preset-btn.active {
+  color: #0b1120;
+}
+
 .segmented {
   display: inline-flex;
   background: var(--surface-alt);

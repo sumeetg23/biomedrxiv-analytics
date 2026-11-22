@@ -95,3 +95,20 @@ def test_etl_materializes_parquet_and_exports_json_contract(tmp_path: Path) -> N
     assert json_path.exists()
     loaded = json.loads(json_path.read_text(encoding="utf-8"))
     assert loaded["kpis"]["all"]["unique_dois"] == 3
+    assert loaded["available_years"] == [2020, 2022, 2023]
+
+    # Verify year-partitioned additive cubes sum exactly to overall totals
+    summed_dois = sum(
+        srv_block["kpi"]["unique_dois"]
+        for yr_block in loaded["by_year"].values()
+        for srv_block in yr_block.values()
+    )
+    summed_pub = sum(
+        srv_block["kpi"]["published_count"]
+        for yr_block in loaded["by_year"].values()
+        for srv_block in yr_block.values()
+    )
+    assert summed_dois == 3
+    assert summed_pub == 2
+    assert loaded["by_year"]["2022"]["biorxiv"]["categories"]["Genomics"][0] == 1
+    assert loaded["by_year"]["2020"]["medrxiv"]["kpi"]["withdrawn_count"] == 1

@@ -15,6 +15,18 @@
       <p id="header-subtitle">Loading dataset metadata...</p>
     </div>
     <div class="controls">
+      <div class="year-filter" role="group" aria-label="Year range filter">
+        <label for="year-start">Years:</label>
+        <select id="year-start" aria-label="Start year"></select>
+        <span class="year-sep">&ndash;</span>
+        <select id="year-end" aria-label="End year"></select>
+        <div class="year-presets">
+          <button type="button" class="preset-btn active" data-preset="all">All</button>
+          <button type="button" class="preset-btn" data-preset="mature" title="First posted ≤ 2024 (avoids right-censoring)">&le;2024</button>
+          <button type="button" class="preset-btn" data-preset="last5">Last 5Y</button>
+          <button type="button" class="preset-btn" data-preset="covid">2020–21</button>
+        </div>
+      </div>
       <div class="segmented" role="group" aria-label="Server filter">
         <button class="active" data-server="all">All Preprints</button>
         <button data-server="biorxiv">bioRxiv</button>
