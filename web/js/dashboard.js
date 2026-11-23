@@ -1562,7 +1562,24 @@ function renderInstTable(query) {
 
 function populateCategoryDropdown() {
   const sel = document.getElementById("category-select");
-  const allCats = DATA.available_categories || [];
+  if (!sel) return;
+  let allCats = DATA.available_categories || [];
+  // Fallback: derive category list from by_year if an older JSON payload was loaded
+  if (!allCats.length && DATA.by_year) {
+    const derived = {};
+    for (const yrBlk of Object.values(DATA.by_year)) {
+      for (const [srv, sBlk] of Object.entries(yrBlk)) {
+        for (const [catName, arr] of Object.entries(sBlk.categories || {})) {
+          if (!derived[catName]) derived[catName] = { name: catName, count: 0, servers: new Set() };
+          derived[catName].count += arr[0] || 0;
+          derived[catName].servers.add(srv);
+        }
+      }
+    }
+    allCats = Object.values(derived)
+      .map((d) => ({ name: d.name, count: d.count, servers: Array.from(d.servers).sort() }))
+      .sort((a, b) => b.count - a.count);
+  }
   const visible =
     currentServer === "all"
       ? allCats
@@ -1621,7 +1638,7 @@ function renderActiveTab() {
 
 async function init() {
   try {
-    const resp = await fetch("./data/dashboard_data.json");
+    const resp = await fetch("./data/dashboard_data.json", { cache: "no-cache" });
     if (!resp.ok) throw new Error(`HTTP ${resp.status} loading ./data/dashboard_data.json`);
     DATA = await resp.json();
   } catch (err) {
@@ -1724,4 +1741,8 @@ async function init() {
   renderActiveTab();
 }
 
-window.addEventListener("DOMContentLoaded", init);
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
