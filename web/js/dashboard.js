@@ -321,13 +321,45 @@ function themeColors() {
   const dark = document.documentElement.getAttribute("data-theme") === "dark";
   return {
     bg: "rgba(0,0,0,0)",
-    text: dark ? "#e2e8f0" : "#0f172a",
-    muted: dark ? "#94a3b8" : "#475569",
-    grid: dark ? "#243247" : "#e2e8f0",
-    biorxiv: dark ? "#2dd4bf" : "#0f766e",
-    medrxiv: dark ? "#60a5fa" : "#2563eb",
-    accent3: dark ? "#fbbf24" : "#d97706",
-    danger: dark ? "#f87171" : "#dc2626",
+    text: dark ? "#efeae1" : "#1b1a18",
+    muted: dark ? "#a69f95" : "#5c5852",
+    grid: dark ? "#2e2a25" : "#e7e2d9",
+    // Authentic journal brand colors: bioRxiv crimson & medRxiv Oxford steel blue
+    biorxiv: dark ? "#d96b6a" : "#a62c2b",
+    medrxiv: dark ? "#6ea4cc" : "#22577a",
+    accent3: dark ? "#e0a94f" : "#c48426",
+    sage: dark ? "#7eb08b" : "#4f775a",
+    danger: dark ? "#e07a5f" : "#9e2a2b",
+    // Custom editorial colorblind-safe multi-series palette (OWID / FT print inspired)
+    series: dark
+      ? ["#d96b6a", "#6ea4cc", "#e0a94f", "#7eb08b", "#c58bb8", "#e0845c", "#8fb8b2", "#c4a381", "#9aa3b2"]
+      : ["#a62c2b", "#22577a", "#c48426", "#4f775a", "#6d4c7d", "#c45b33", "#2d5f5d", "#8c6d46", "#5c6670"],
+    // Custom warm archival heatmap ramp (Cream -> Ochre -> Terracotta -> Burgundy)
+    heatScale: dark
+      ? [
+          [0, "#24211d"],
+          [0.35, "#6b4d2b"],
+          [0.7, "#b55d3c"],
+          [1, "#e6a15c"],
+        ]
+      : [
+          [0, "#f5efe6"],
+          [0.35, "#e6c38d"],
+          [0.7, "#c46542"],
+          [1, "#7c1d22"],
+        ],
+    // Custom Oxford blue sequential ramp for bars & bubbles
+    blueScale: dark
+      ? [
+          [0, "#253646"],
+          [0.5, "#4c7ba0"],
+          [1, "#9cc5e4"],
+        ]
+      : [
+          [0, "#dde6ee"],
+          [0.5, "#5a87a8"],
+          [1, "#183d59"],
+        ],
   };
 }
 
@@ -337,9 +369,10 @@ function baseLayout(extra = {}) {
     {
       paper_bgcolor: c.bg,
       plot_bgcolor: c.bg,
+      colorway: c.series,
       font: {
         color: c.text,
-        family: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif",
+        family: '"Helvetica Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
         size: 12,
       },
       margin: { l: 58, r: 24, t: 24, b: 48 },
@@ -558,13 +591,13 @@ function renderOverview(agg) {
     currentCategory === "all"
       ? {
           color: top20.map((d) => d.pub_pct),
-          colorscale: "Teal",
+          colorscale: c.blueScale,
           cmin: 0,
           cmax: 80,
           colorbar: { title: "Pub %", thickness: 12 },
         }
       : {
-          color: top20.map((d) => (d.category === currentCategory ? c.accent3 : c.grid)),
+          color: top20.map((d) => (d.category === currentCategory ? c.biorxiv : c.grid)),
         };
 
   Plotly.newPlot(
@@ -672,7 +705,7 @@ function renderPeerReview(agg) {
           y: [currentCategory],
           z: [zRow],
           customdata: [nRow],
-          colorscale: "YlGnBu",
+          colorscale: c.heatScale,
           zmin: 0,
           zmax: 85,
           hovertemplate:
@@ -706,7 +739,7 @@ function renderPeerReview(agg) {
           y: [...h.categories].reverse(),
           z: fZ,
           customdata: fCounts,
-          colorscale: "YlGnBu",
+          colorscale: c.heatScale,
           zmin: 0,
           zmax: 85,
           hovertemplate:
@@ -951,13 +984,13 @@ function renderOpenScience(agg) {
   const c = themeColors();
   const lic = DATA.license_evolution;
   const palette = {
-    cc_by: "#0f766e",
-    cc0: "#14b8a6",
-    cc_by_nc: "#3b82f6",
-    cc_by_nd: "#8b5cf6",
-    cc_by_nc_nd: "#f59e0b",
-    cc_no: "#64748b",
-    other: "#cbd5e1",
+    cc_by: "#4f775a",
+    cc0: "#2d5f5d",
+    cc_by_nc: "#22577a",
+    cc_by_nd: "#6d4c7d",
+    cc_by_nc_nd: "#c48426",
+    cc_no: "#7a756d",
+    other: "#c9c1b4",
   };
 
   if (agg.isCategoryFiltered) {
@@ -1454,8 +1487,8 @@ function renderInstitutions(agg) {
         marker: {
           size: currentInstList.map((d) => Math.max(10, Math.min(34, d.avg_authors * 2.2))),
           color: currentInstList.map((d) => d.pub_rate_pct),
-          colorscale: "Viridis",
-          opacity: 0.85,
+          colorscale: c.heatScale,
+          opacity: 0.88,
           line: { width: 1, color: "#ffffff" },
         },
         customdata: currentInstList.map((d) => [d.institution, d.country || "—", d.avg_authors, d.mature_pub_rate_pct ?? "—"]),
