@@ -815,10 +815,64 @@ def build_clinical_trials_payload(paths: ProjectPaths) -> dict[str, Any] | None:
         "top_translational_papers": top_translational,
     }
 
+    # Category-partitioned clinical trials cubes for top-bar Subject Category filtering
+    by_category_ct: dict[str, dict[str, dict[str, Any]]] = {}
+    links_cat = links.dropna(subset=["category_clean", "year"]).copy()
+    links_cat["cat_title"] = links_cat["category_clean"].astype(str).str.title()
+    for (cat_title, yr_val, srv_val), sub in links_cat.groupby(
+        ["cat_title", "year", "server_clean"], sort=False
+    ):
+        yr_s = str(int(yr_val))
+        srv_s = str(srv_val)
+        sub_dois = sub.drop_duplicates("normalized_doi")
+        sub_trials = sub.drop_duplicates("trial_id")
+        enriched_trials = sub_trials[sub_trials["phase"].notna()]
+
+        phase_vc = (
+            enriched_trials["phase"]
+            .fillna("UNKNOWN")
+            .map(lambda p: "Not Applicable / Non-Drug" if p == "NA" else p.replace("PHASE", "Phase "))
+            .value_counts()
+        )
+        status_vc = enriched_trials["overall_status"].fillna("UNKNOWN").value_counts()
+        sponsor_vc = enriched_trials["sponsor_class"].fillna("UNKNOWN").value_counts()
+        reg_vc = sub["registry"].value_counts()
+
+        cond_counts: dict[str, int] = {}
+        for cond_list in enriched_trials["conditions"]:
+            if isinstance(cond_list, (list, tuple)):
+                for cond in cond_list:
+                    c_str = str(cond).strip()
+                    if c_str:
+                        cond_counts[c_str] = cond_counts.get(c_str, 0) + 1
+        top_cond_map = dict(sorted(cond_counts.items(), key=lambda kv: kv[1], reverse=True)[:15])
+
+        by_category_ct.setdefault(str(cat_title), {}).setdefault(yr_s, {})[srv_s] = {
+            "kpi": {
+                "trial_linked_dois": int(len(sub_dois)),
+                "published_trial_dois": int(sub_dois["snapshot_is_published"].sum()),
+                "total_links": int(len(sub)),
+                "unique_trials": int(len(sub_trials)),
+                "enriched_nct_trials": int(len(enriched_trials)),
+                "trials_with_results": int(enriched_trials["has_results"].sum()),
+                "total_enrollment": int(
+                    pd.to_numeric(enriched_trials["enrollment_count"], errors="coerce")
+                    .fillna(0)
+                    .sum()
+                ),
+            },
+            "registries": {str(k): int(v) for k, v in reg_vc.items()},
+            "phases": {str(k): int(v) for k, v in phase_vc.items()},
+            "statuses": {str(k): int(v) for k, v in status_vc.items()},
+            "sponsor_classes": {str(k): int(v) for k, v in sponsor_vc.items()},
+            "conditions": top_cond_map,
+        }
+
     return {
         "years": years,
         "cache_stats": cache.stats(),
         "by_year": by_year,
+        "by_category": by_category_ct,
         "featured_trials": featured_trials,
         "downstream_icite": downstream_summary,
     }

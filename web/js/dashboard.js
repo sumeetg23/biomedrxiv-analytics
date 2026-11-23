@@ -2,6 +2,7 @@
 
 let DATA = null;
 let currentServer = "all";
+let currentCategory = "all";
 let currentTab = "overview";
 let startYear = null;
 let endYear = null;
@@ -10,6 +11,7 @@ const PLOT_CFG = { responsive: true, displaylogo: false };
 const REVISION_ORDER = ["1", "2", "3", "4", "5+"];
 const TEAM_BUCKET_ORDER = ["1 (Solo)", "2–3", "4–6", "7–10", "11–20", "21+"];
 const TYPE_ORDER = ["New Results", "Confirmatory Results", "Contradictory Results"];
+const LICENSE_ORDER = ["cc_by", "cc_by_nc_nd", "cc_by_nc", "cc_by_nd", "cc_no", "cc0", "other"];
 
 const fmtInt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-US"));
 const fmtPct = (n) => (n == null ? "—" : `${Number(n).toFixed(1)}%`);
@@ -54,23 +56,29 @@ function selectedServers() {
   return currentServer === "all" ? ["biorxiv", "medrxiv"] : [currentServer];
 }
 
-function selectedYears() {
-  return DATA.available_years.filter((y) => y >= startYear && y <= endYear);
-}
-
 function yearRangeLabel() {
   return startYear === endYear ? `${startYear}` : `${startYear} – ${endYear}`;
 }
 
+function filterScopeLabel() {
+  const catPart = currentCategory === "all" ? "" : `${currentCategory} • `;
+  return `${catPart}${yearRangeLabel()}`;
+}
+
 function isFullRange() {
   const yrs = DATA.available_years;
-  return startYear === yrs[0] && endYear === yrs[yrs.length - 1];
+  return startYear === yrs[0] && endYear === yrs[yrs.length - 1] && currentCategory === "all";
 }
 
 /**
- * Aggregate additive year-partitioned slices for [startYear, endYear] & server(s).
+ * Aggregate additive slices for [startYear, endYear], server(s), and optional Subject Category.
  */
-function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax = endYear) {
+function aggregateWindow(
+  servers = selectedServers(),
+  yrMin = startYear,
+  yrMax = endYear,
+  category = currentCategory
+) {
   const matureCutoff = DATA.mature_cohort_cutoff_year ?? 2024;
   let uniqueDois = 0;
   let versionRows = 0;
@@ -79,27 +87,146 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
   let maturePublished = 0;
   let withdrawnCount = 0;
   let versionSum = 0;
+  let authorSum = 0;
   let maxVersions = 0;
   let dateMin = "";
   let dateMax = "";
   const authorHist = {};
 
-  const categories = {}; // cat -> [cnt, pub, vsum, asum, matCnt, matPub]
-  const publishers = {}; // pubName -> cnt
-  const revisions = {}; // bucket -> [cnt, pub]
-  const teamBuckets = {}; // bucket -> [cnt, pub]
-  const types = {}; // type -> [cnt, pub]
-  const institutions = {}; // inst -> [cnt, pub, asum, matCnt, matPub]
-  const countries = {}; // country -> cnt
+  const categories = {};
+  const publishers = {};
+  const revisions = {};
+  const teamBuckets = {};
+  const types = {};
+  const institutions = {};
+  const countries = {};
+  const annualByYear = {}; // yr -> { total, pub, withdrawn, authorSum, lic: [7], kw: [9] }
+
+  const useCatCube = category !== "all" && DATA.by_category && DATA.by_category[category];
+  const catObj = useCatCube ? DATA.by_category[category] : null;
 
   for (const y of DATA.available_years) {
     if (y < yrMin || y > yrMax) continue;
-    const yrBlock = DATA.by_year[String(y)];
-    if (!yrBlock) continue;
+    const yrStr = String(y);
     const isMature = y <= matureCutoff;
 
+    // Always aggregate all-categories map so Tab 1's category ranking can show peer context
+    const allYrBlock = DATA.by_year[yrStr];
+    if (allYrBlock) {
+      for (const srv of servers) {
+        const sAll = allYrBlock[srv];
+        if (!sAll) continue;
+        for (const [cat, arr] of Object.entries(sAll.categories || {})) {
+          const cur = categories[cat] || [0, 0, 0, 0, 0, 0];
+          cur[0] += arr[0];
+          cur[1] += arr[1];
+          cur[2] += arr[2];
+          cur[3] += arr[3];
+          if (isMature) {
+            cur[4] += arr[0];
+            cur[5] += arr[1];
+          }
+          categories[cat] = cur;
+        }
+      }
+    }
+
+    if (useCatCube) {
+      const cYrBlock = catObj.by_year[yrStr];
+      if (!cYrBlock) continue;
+      const annRow = annualByYear[y] || {
+        total: 0,
+        biorxiv: 0,
+        medrxiv: 0,
+        pub: 0,
+        withdrawn: 0,
+        authorSum: 0,
+        lic: [0, 0, 0, 0, 0, 0, 0],
+        kw: new Array((DATA.frontier_trends?.series || []).length).fill(0),
+      };
+
+      for (const srv of servers) {
+        const cs = cYrBlock[srv];
+        if (!cs) continue;
+        const [uDoi, vRows, pubC, wdC, vSum, mVer, aSum] = cs.k;
+
+        uniqueDois += uDoi;
+        versionRows += vRows;
+        publishedCount += pubC;
+        withdrawnCount += wdC;
+        versionSum += vSum;
+        authorSum += aSum;
+        if (mVer > maxVersions) maxVersions = mVer;
+        if (!dateMin || yrStr < dateMin) dateMin = yrStr;
+        if (!dateMax || yrStr > dateMax) dateMax = yrStr;
+        if (isMature) {
+          matureDois += uDoi;
+          maturePublished += pubC;
+        }
+
+        annRow.total += uDoi;
+        annRow[srv] += uDoi;
+        annRow.pub += pubC;
+        annRow.withdrawn += wdC;
+        annRow.authorSum += aSum;
+
+        (cs.lic || []).forEach((v, idx) => {
+          annRow.lic[idx] += v;
+        });
+        (cs.kw || []).forEach((v, idx) => {
+          annRow.kw[idx] = (annRow.kw[idx] || 0) + v;
+        });
+
+        REVISION_ORDER.forEach((b, idx) => {
+          const [cnt, pub] = (cs.rev && cs.rev[idx]) || [0, 0];
+          const cur = revisions[b] || [0, 0];
+          cur[0] += cnt;
+          cur[1] += pub;
+          revisions[b] = cur;
+        });
+
+        TEAM_BUCKET_ORDER.forEach((b, idx) => {
+          const [cnt, pub] = (cs.team && cs.team[idx]) || [0, 0];
+          const cur = teamBuckets[b] || [0, 0];
+          cur[0] += cnt;
+          cur[1] += pub;
+          teamBuckets[b] = cur;
+        });
+
+        TYPE_ORDER.forEach((t, idx) => {
+          const [cnt, pub] = (cs.type && cs.type[idx]) || [0, 0];
+          const cur = types[t] || [0, 0];
+          cur[0] += cnt;
+          cur[1] += pub;
+          types[t] = cur;
+        });
+
+        for (const [pubName, cnt] of Object.entries(cs.pub || {})) {
+          publishers[pubName] = (publishers[pubName] || 0) + cnt;
+        }
+        for (const [country, cnt] of Object.entries(cs.ctry || {})) {
+          countries[country] = (countries[country] || 0) + cnt;
+        }
+        for (const [inst, arr] of Object.entries(cs.inst || {})) {
+          const cur = institutions[inst] || [0, 0, 0, 0, 0];
+          cur[0] += arr[0];
+          cur[1] += arr[1];
+          cur[2] += arr[2];
+          if (isMature) {
+            cur[3] += arr[0];
+            cur[4] += arr[1];
+          }
+          institutions[inst] = cur;
+        }
+      }
+      annualByYear[y] = annRow;
+      continue;
+    }
+
+    // Standard all-categories aggregation
+    if (!allYrBlock) continue;
     for (const srv of servers) {
-      const s = yrBlock[srv];
+      const s = allYrBlock[srv];
       if (!s) continue;
       const k = s.kpi;
 
@@ -121,44 +248,27 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
         authorHist[ak] = (authorHist[ak] || 0) + av;
       }
 
-      for (const [cat, arr] of Object.entries(s.categories || {})) {
-        const cur = categories[cat] || [0, 0, 0, 0, 0, 0];
-        cur[0] += arr[0];
-        cur[1] += arr[1];
-        cur[2] += arr[2];
-        cur[3] += arr[3];
-        if (isMature) {
-          cur[4] += arr[0];
-          cur[5] += arr[1];
-        }
-        categories[cat] = cur;
-      }
-
       for (const [pubName, cnt] of Object.entries(s.publishers || {})) {
         publishers[pubName] = (publishers[pubName] || 0) + cnt;
       }
-
       for (const [b, arr] of Object.entries(s.revisions || {})) {
         const cur = revisions[b] || [0, 0];
         cur[0] += arr[0];
         cur[1] += arr[1];
         revisions[b] = cur;
       }
-
       for (const [b, arr] of Object.entries(s.team_buckets || {})) {
         const cur = teamBuckets[b] || [0, 0];
         cur[0] += arr[0];
         cur[1] += arr[1];
         teamBuckets[b] = cur;
       }
-
       for (const [t, arr] of Object.entries(s.types || {})) {
         const cur = types[t] || [0, 0];
         cur[0] += arr[0];
         cur[1] += arr[1];
         types[t] = cur;
       }
-
       for (const [inst, arr] of Object.entries(s.institutions || {})) {
         const cur = institutions[inst] || [0, 0, 0, 0, 0];
         cur[0] += arr[0];
@@ -170,7 +280,6 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
         }
         institutions[inst] = cur;
       }
-
       for (const [country, cnt] of Object.entries(s.countries || {})) {
         countries[country] = (countries[country] || 0) + cnt;
       }
@@ -178,6 +287,7 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
   }
 
   return {
+    isCategoryFiltered: Boolean(useCatCube),
     kpi: {
       unique_dois: uniqueDois,
       version_rows: versionRows,
@@ -186,12 +296,13 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
       mature_dois: matureDois,
       mature_pub_rate_pct: matureDois > 0 ? +((maturePublished / matureDois) * 100).toFixed(2) : null,
       mature_cutoff: matureCutoff,
-      median_authors: medianFromHist(authorHist),
+      median_authors: useCatCube ? null : medianFromHist(authorHist),
+      avg_authors: useCatCube && uniqueDois > 0 ? +(authorSum / uniqueDois).toFixed(1) : null,
       avg_versions: uniqueDois > 0 ? +(versionSum / uniqueDois).toFixed(2) : 0,
       max_versions: maxVersions,
       withdrawn_count: withdrawnCount,
       withdrawn_per_1k: uniqueDois > 0 ? +((withdrawnCount / uniqueDois) * 1000).toFixed(2) : 0,
-      unique_categories: Object.keys(categories).length,
+      unique_categories: useCatCube ? 1 : Object.keys(categories).length,
       date_min: dateMin || `${yrMin}`,
       date_max: dateMax || `${yrMax}`,
     },
@@ -202,6 +313,7 @@ function aggregateWindow(servers = selectedServers(), yrMin = startYear, yrMax =
     types,
     institutions,
     countries,
+    annualByYear,
   };
 }
 
@@ -242,41 +354,50 @@ function baseLayout(extra = {}) {
 
 function renderKPIs(agg) {
   const k = agg.kpi;
+  const scope = filterScopeLabel();
   const pubCard =
     k.mature_pub_rate_pct !== null && endYear > k.mature_cutoff
       ? {
           label: `Pub Rate (${yearRangeLabel()})`,
           value: fmtPct(k.pub_rate_pct),
-          sub: `Mature (≤${k.mature_cutoff}) in window: ${fmtPct(k.mature_pub_rate_pct)}`,
+          sub: `Mature (≤${k.mature_cutoff}) in slice: ${fmtPct(k.mature_pub_rate_pct)}`,
         }
       : {
-          label: `Peer-Review Pub Rate (${yearRangeLabel()})`,
+          label: `Peer-Review Pub Rate`,
           value: fmtPct(k.pub_rate_pct),
           sub: `${fmtInt(k.published_count)} published DOIs`,
         };
 
+  const teamCard = agg.isCategoryFiltered
+    ? {
+        label: "Mean Team Size",
+        value: `${k.avg_authors ?? 0} authors`,
+        sub: `Subject: ${currentCategory}`,
+      }
+    : {
+        label: "Median Team Size",
+        value: k.median_authors >= 31 ? "31+ authors" : `${k.median_authors} authors`,
+        sub: `${k.unique_categories} active categories`,
+      };
+
   const cards = [
     {
-      label: `Unique Preprints (${yearRangeLabel()})`,
+      label: `Unique Preprints (${scope})`,
       value: fmtInt(k.unique_dois),
       sub: `${fmtInt(k.version_rows)} total version postings`,
     },
     pubCard,
     {
-      label: "Active Date Window",
-      value: yearRangeLabel(),
-      sub: k.unique_dois > 0 ? `${k.date_min} to ${k.date_max}` : "No preprints in range",
+      label: "Active Scope",
+      value: currentCategory === "all" ? yearRangeLabel() : currentCategory,
+      sub: k.unique_dois > 0 ? `${k.date_min} to ${k.date_max}` : "No preprints in slice",
     },
     {
       label: "Avg Versions / Paper",
       value: k.avg_versions.toFixed(2),
       sub: `Max versions on a DOI: ${k.max_versions}`,
     },
-    {
-      label: "Median Team Size",
-      value: k.median_authors >= 31 ? "31+ authors" : `${k.median_authors} authors`,
-      sub: `${k.unique_categories} active categories`,
-    },
+    teamCard,
     {
       label: "Withdrawn Preprints",
       value: fmtInt(k.withdrawn_count),
@@ -300,20 +421,40 @@ function renderOverview(agg) {
   const biasPp = (a.raw_row_publication_rate_pct - a.dedup_doi_publication_rate_pct).toFixed(2);
   const filterNote = isFullRange()
     ? ""
-    : ` Currently viewing <strong>${yearRangeLabel()}</strong> (${fmtInt(agg.kpi.unique_dois)} unique DOIs).`;
+    : ` Currently viewing <strong>${filterScopeLabel()}</strong> (${fmtInt(agg.kpi.unique_dois)} unique DOIs).`;
   document.getElementById("audit-callout").innerHTML =
     `<strong>Data Quality Guardrails Applied:</strong> Deduplicated <strong>${fmtInt(a.raw_row_count)}</strong> version rows into <strong>${fmtInt(a.unique_doi_count)}</strong> unique DOIs (preventing a <strong>+${biasPp} pp</strong> upward bias in publication rate), normalized <strong>${a.raw_unique_categories}</strong> messy category strings down to <strong>${a.clean_unique_categories}</strong> canonical fields, and flagged <strong>${fmtInt(a.withdrawn_unique_dois)}</strong> withdrawn papers.${filterNote}`;
 
-  // 1. Monthly growth filtered by [startYear, endYear]
+  // 1. Monthly growth (supports Subject Category via sparse monthly array!)
   const mg = DATA.monthly_growth;
-  const mIdx = [];
-  for (let i = 0; i < mg.months.length; i++) {
-    const yr = Number(mg.months[i].slice(0, 4));
-    if (yr >= startYear && yr <= endYear) mIdx.push(i);
+  let fMonths = [];
+  let fBio = [];
+  let fMed = [];
+
+  if (agg.isCategoryFiltered) {
+    const sparseMap = new Map();
+    for (const [mIdx, bCnt, mCnt] of DATA.by_category[currentCategory].monthly || []) {
+      sparseMap.set(mIdx, [bCnt, mCnt]);
+    }
+    for (let i = 0; i < mg.months.length; i++) {
+      const yr = Number(mg.months[i].slice(0, 4));
+      if (yr >= startYear && yr <= endYear) {
+        fMonths.push(mg.months[i]);
+        const pair = sparseMap.get(i) || [0, 0];
+        fBio.push(pair[0]);
+        fMed.push(pair[1]);
+      }
+    }
+  } else {
+    for (let i = 0; i < mg.months.length; i++) {
+      const yr = Number(mg.months[i].slice(0, 4));
+      if (yr >= startYear && yr <= endYear) {
+        fMonths.push(mg.months[i]);
+        fBio.push(mg.biorxiv[i]);
+        fMed.push(mg.medrxiv[i]);
+      }
+    }
   }
-  const fMonths = mIdx.map((i) => mg.months[i]);
-  const fBio = mIdx.map((i) => mg.biorxiv[i]);
-  const fMed = mIdx.map((i) => mg.medrxiv[i]);
 
   const traces = [];
   if (currentServer === "all" || currentServer === "biorxiv") {
@@ -388,15 +529,15 @@ function renderOverview(agg) {
     baseLayout({
       hovermode: "x unified",
       yaxis: { title: "Unique Preprints / Month", gridcolor: c.grid },
-      xaxis: { title: `First Posting Month (${yearRangeLabel()})`, gridcolor: c.grid },
+      xaxis: { title: `First Posting Month (${filterScopeLabel()})`, gridcolor: c.grid },
       shapes,
       annotations,
     }),
     PLOT_CFG
   );
 
-  // 2. Top 20 categories dynamically aggregated for [startYear, endYear]
-  const cats = Object.entries(agg.categories)
+  // 2. Top 20 categories (highlights active Subject Category in accent color if selected)
+  let cats = Object.entries(agg.categories)
     .map(([category, [cnt, pub, vsum, asum]]) => ({
       category,
       count: cnt,
@@ -404,9 +545,27 @@ function renderOverview(agg) {
       avg_versions: cnt > 0 ? +(vsum / cnt).toFixed(2) : 0,
       avg_authors: cnt > 0 ? +(asum / cnt).toFixed(1) : 0,
     }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 20)
-    .reverse();
+    .sort((a, b) => b.count - a.count);
+
+  const top20 = cats.slice(0, 20);
+  if (currentCategory !== "all" && !top20.some((d) => d.category === currentCategory)) {
+    const selectedObj = cats.find((d) => d.category === currentCategory);
+    if (selectedObj) top20.push(selectedObj);
+  }
+  top20.reverse();
+
+  const barMarker =
+    currentCategory === "all"
+      ? {
+          color: top20.map((d) => d.pub_pct),
+          colorscale: "Teal",
+          cmin: 0,
+          cmax: 80,
+          colorbar: { title: "Pub %", thickness: 12 },
+        }
+      : {
+          color: top20.map((d) => (d.category === currentCategory ? c.accent3 : c.grid)),
+        };
 
   Plotly.newPlot(
     "chart-categories",
@@ -414,16 +573,10 @@ function renderOverview(agg) {
       {
         type: "bar",
         orientation: "h",
-        y: cats.map((d) => d.category),
-        x: cats.map((d) => d.count),
-        marker: {
-          color: cats.map((d) => d.pub_pct),
-          colorscale: "Teal",
-          cmin: 0,
-          cmax: 80,
-          colorbar: { title: "Pub %", thickness: 12 },
-        },
-        customdata: cats.map((d) => [d.pub_pct, d.avg_authors, d.avg_versions]),
+        y: top20.map((d) => d.category),
+        x: top20.map((d) => d.count),
+        marker: barMarker,
+        customdata: top20.map((d) => [d.pub_pct, d.avg_authors, d.avg_versions]),
         hovertemplate:
           "<b>%{y}</b><br>Unique DOIs: %{x:,}<br>Pub Rate (window): %{customdata[0]}%<br>Avg Authors: %{customdata[1]}<br>Avg Versions: %{customdata[2]}<extra></extra>",
       },
@@ -436,21 +589,33 @@ function renderOverview(agg) {
     PLOT_CFG
   );
 
-  // 3. Annual volume + server-matched publication rate
-  const ann = DATA.annual_summary;
-  const aIdx = [];
-  for (let i = 0; i < ann.years.length; i++) {
-    if (ann.years[i] >= startYear && ann.years[i] <= endYear) aIdx.push(i);
+  // 3. Annual volume + publication rate
+  let fYears = [];
+  let barY = [];
+  let lineY = [];
+  if (agg.isCategoryFiltered) {
+    fYears = DATA.available_years.filter((y) => y >= startYear && y <= endYear);
+    barY = fYears.map((y) => (agg.annualByYear[y] ? agg.annualByYear[y].total : 0));
+    lineY = fYears.map((y) => {
+      const row = agg.annualByYear[y];
+      return row && row.total > 0 ? +((row.pub / row.total) * 100).toFixed(2) : null;
+    });
+  } else {
+    const ann = DATA.annual_summary;
+    const pubSeries =
+      currentServer === "biorxiv"
+        ? ann.biorxiv_pub_rate_pct
+        : currentServer === "medrxiv"
+        ? ann.medrxiv_pub_rate_pct
+        : ann.pub_rate_pct;
+    for (let i = 0; i < ann.years.length; i++) {
+      if (ann.years[i] >= startYear && ann.years[i] <= endYear) {
+        fYears.push(ann.years[i]);
+        barY.push(currentServer === "all" ? ann.total[i] : ann[currentServer][i]);
+        lineY.push(pubSeries[i]);
+      }
+    }
   }
-  const fYears = aIdx.map((i) => ann.years[i]);
-  const barY = aIdx.map((i) => (currentServer === "all" ? ann.total[i] : ann[currentServer][i]));
-  const pubSeries =
-    currentServer === "biorxiv"
-      ? ann.biorxiv_pub_rate_pct
-      : currentServer === "medrxiv"
-      ? ann.medrxiv_pub_rate_pct
-      : ann.pub_rate_pct;
-  const lineY = aIdx.map((i) => pubSeries[i]);
 
   Plotly.newPlot(
     "chart-annual",
@@ -474,13 +639,13 @@ function renderOverview(agg) {
     ],
     baseLayout({
       hovermode: "x unified",
-      xaxis: { dtick: 1, gridcolor: c.grid },
+      xaxis: { dtick: 1, title: filterScopeLabel(), gridcolor: c.grid },
       yaxis: { title: "Unique Preprints", gridcolor: c.grid },
       yaxis2: {
         title: "Snapshot Published (%)",
         overlaying: "y",
         side: "right",
-        range: [0, 90],
+        range: [0, 95],
         showgrid: false,
       },
     }),
@@ -490,80 +655,116 @@ function renderOverview(agg) {
 
 function renderPeerReview(agg) {
   const c = themeColors();
-  const h = DATA.cohort_heatmap;
-  const yIndices = [];
-  for (let i = 0; i < h.years.length; i++) {
-    if (h.years[i] >= startYear && h.years[i] <= endYear) yIndices.push(i);
+  if (agg.isCategoryFiltered) {
+    // Show single-category yearly publication rate heatmap row + counts
+    const fYears = DATA.available_years.filter((y) => y >= startYear && y <= endYear);
+    const zRow = fYears.map((y) => {
+      const r = agg.annualByYear[y];
+      return r && r.total >= 5 ? +((r.pub / r.total) * 100).toFixed(1) : null;
+    });
+    const nRow = fYears.map((y) => (agg.annualByYear[y] ? agg.annualByYear[y].total : 0));
+    Plotly.newPlot(
+      "chart-heatmap",
+      [
+        {
+          type: "heatmap",
+          x: fYears,
+          y: [currentCategory],
+          z: [zRow],
+          customdata: [nRow],
+          colorscale: "YlGnBu",
+          zmin: 0,
+          zmax: 85,
+          hovertemplate:
+            "<b>%{y}</b> (%{x})<br>Published: %{z}%<br>Preprints: %{customdata:,}<extra></extra>",
+          colorbar: { title: "Published %" },
+        },
+      ],
+      baseLayout({
+        margin: { l: 190, r: 24, t: 20, b: 48 },
+        xaxis: { dtick: 1, title: `First Posting Year (${filterScopeLabel()})` },
+        yaxis: { automargin: true },
+      }),
+      PLOT_CFG
+    );
+  } else {
+    const h = DATA.cohort_heatmap;
+    const yIndices = [];
+    for (let i = 0; i < h.years.length; i++) {
+      if (h.years[i] >= startYear && h.years[i] <= endYear) yIndices.push(i);
+    }
+    const fYears = yIndices.map((i) => h.years[i]);
+    const fZ = [...h.pub_rate_pct].reverse().map((row) => yIndices.map((i) => row[i]));
+    const fCounts = [...h.counts].reverse().map((row) => yIndices.map((i) => row[i]));
+
+    Plotly.newPlot(
+      "chart-heatmap",
+      [
+        {
+          type: "heatmap",
+          x: fYears,
+          y: [...h.categories].reverse(),
+          z: fZ,
+          customdata: fCounts,
+          colorscale: "YlGnBu",
+          zmin: 0,
+          zmax: 85,
+          hovertemplate:
+            "<b>%{y}</b> (%{x})<br>Published: %{z}%<br>Preprints: %{customdata:,}<extra></extra>",
+          colorbar: { title: "Published %" },
+        },
+      ],
+      baseLayout({
+        margin: { l: 190, r: 24, t: 20, b: 48 },
+        xaxis: { dtick: 1, title: `First Posting Year (${yearRangeLabel()})` },
+        yaxis: { automargin: true },
+      }),
+      PLOT_CFG
+    );
   }
-  const fYears = yIndices.map((i) => h.years[i]);
-  const fZ = [...h.pub_rate_pct].reverse().map((row) => yIndices.map((i) => row[i]));
-  const fCounts = [...h.counts].reverse().map((row) => yIndices.map((i) => row[i]));
 
-  Plotly.newPlot(
-    "chart-heatmap",
-    [
-      {
-        type: "heatmap",
-        x: fYears,
-        y: [...h.categories].reverse(),
-        z: fZ,
-        customdata: fCounts,
-        colorscale: "YlGnBu",
-        zmin: 0,
-        zmax: 85,
-        hovertemplate:
-          "<b>%{y}</b> (%{x})<br>Published: %{z}%<br>Preprints: %{customdata:,}<extra></extra>",
-        colorbar: { title: "Published %" },
-      },
-    ],
-    baseLayout({
-      margin: { l: 190, r: 24, t: 20, b: 48 },
-      xaxis: { dtick: 1, title: `First Posting Year (${yearRangeLabel()})` },
-      yaxis: { automargin: true },
-    }),
-    PLOT_CFG
-  );
-
-  // Revisions vs Pub rate (dynamically aggregated for [startYear, endYear] per server)
+  // Revisions vs Pub rate
   const bioAgg = aggregateWindow(["biorxiv"]);
   const medAgg = aggregateWindow(["medrxiv"]);
   const revServers = currentServer === "all" ? ["biorxiv", "medrxiv"] : [currentServer];
-  const revTraces = revServers.map((srv) => {
-    const src = srv === "biorxiv" ? bioAgg.revisions : medAgg.revisions;
-    const rows = REVISION_ORDER.map((b) => {
-      const [cnt, pub] = src[b] || [0, 0];
-      const ci = wilsonCiPct(pub, cnt);
-      return { versions: b, count: cnt, rate: ci.rate, low: ci.low, high: ci.high };
+  const revTraces = revServers
+    .filter((srv) => (srv === "biorxiv" ? bioAgg.kpi.unique_dois : medAgg.kpi.unique_dois) > 0)
+    .map((srv) => {
+      const src = srv === "biorxiv" ? bioAgg.revisions : medAgg.revisions;
+      const rows = REVISION_ORDER.map((b) => {
+        const [cnt, pub] = src[b] || [0, 0];
+        const ci = wilsonCiPct(pub, cnt);
+        return { versions: b, count: cnt, rate: ci.rate, low: ci.low, high: ci.high };
+      });
+      return {
+        type: "bar",
+        name: srv === "biorxiv" ? "bioRxiv" : "medRxiv",
+        x: rows.map((r) => `${r.versions} ver`),
+        y: rows.map((r) => r.rate),
+        error_y: {
+          type: "data",
+          symmetric: false,
+          array: rows.map((r) => +(r.high - r.rate).toFixed(2)),
+          arrayminus: rows.map((r) => +(r.rate - r.low).toFixed(2)),
+        },
+        marker: { color: srv === "biorxiv" ? c.biorxiv : c.medrxiv },
+        customdata: rows.map((r) => [r.count, r.low, r.high]),
+        hovertemplate:
+          "<b>%{fullData.name} — %{x}</b><br>Published: %{y}% (95% CI: %{customdata[1]}–%{customdata[2]}%)<br>n = %{customdata[0]:,}<extra></extra>",
+      };
     });
-    return {
-      type: "bar",
-      name: srv === "biorxiv" ? "bioRxiv" : "medRxiv",
-      x: rows.map((r) => `${r.versions} ver`),
-      y: rows.map((r) => r.rate),
-      error_y: {
-        type: "data",
-        symmetric: false,
-        array: rows.map((r) => +(r.high - r.rate).toFixed(2)),
-        arrayminus: rows.map((r) => +(r.rate - r.low).toFixed(2)),
-      },
-      marker: { color: srv === "biorxiv" ? c.biorxiv : c.medrxiv },
-      customdata: rows.map((r) => [r.count, r.low, r.high]),
-      hovertemplate:
-        "<b>%{fullData.name} — %{x}</b><br>Published: %{y}% (95% CI: %{customdata[1]}–%{customdata[2]}%)<br>n = %{customdata[0]:,}<extra></extra>",
-    };
-  });
   Plotly.newPlot(
     "chart-revisions",
     revTraces,
     baseLayout({
       barmode: "group",
       yaxis: { title: "Peer-Reviewed Publication Rate (%)", range: [0, 100], gridcolor: c.grid },
-      xaxis: { title: `Number of Preprint Versions (${yearRangeLabel()})` },
+      xaxis: { title: `Number of Preprint Versions (${filterScopeLabel()})` },
     }),
     PLOT_CFG
   );
 
-  // Top Publishers dynamically aggregated
+  // Top Publishers
   const totalPub = Math.max(agg.kpi.published_count, 1);
   const pubs = Object.entries(agg.publishers)
     .filter(([k]) => k !== "Other Publishers")
@@ -587,18 +788,18 @@ function renderPeerReview(agg) {
         marker: { color: currentServer === "medrxiv" ? c.medrxiv : c.biorxiv },
         customdata: pubs.map((p) => p.share_pct),
         hovertemplate:
-          "<b>%{y}</b><br>Published Papers: %{x:,} (%{customdata}% of published in window)<extra></extra>",
+          "<b>%{y}</b><br>Published Papers: %{x:,} (%{customdata}% of published in slice)<extra></extra>",
       },
     ],
     baseLayout({
       margin: { l: 220, r: 24, t: 20, b: 48 },
-      xaxis: { title: `Published Preprints (${yearRangeLabel()})`, gridcolor: c.grid },
+      xaxis: { title: `Published Preprints (${filterScopeLabel()})`, gridcolor: c.grid },
       yaxis: { automargin: true },
     }),
     PLOT_CFG
   );
 
-  // Type Bias (bioRxiv types in selected year window)
+  // Type Bias (bioRxiv types in selected window + category)
   const tb = TYPE_ORDER.map((t) => {
     const [cnt, pub] = bioAgg.types[t] || [0, 0];
     const ci = wilsonCiPct(pub, cnt);
@@ -624,15 +825,72 @@ function renderPeerReview(agg) {
       },
     ],
     baseLayout({
-      yaxis: { title: `Publication Rate (${yearRangeLabel()}, %)`, range: [0, 85], gridcolor: c.grid },
+      yaxis: { title: `Publication Rate (${filterScopeLabel()}, %)`, range: [0, 85], gridcolor: c.grid },
     }),
     PLOT_CFG
   );
 }
 
-function renderFrontiers() {
+function renderFrontiers(agg) {
   const c = themeColors();
   const ft = DATA.frontier_trends;
+
+  if (agg.isCategoryFiltered) {
+    const fYears = DATA.available_years.filter((y) => y >= Math.max(2015, startYear) && y <= endYear);
+    const traces = ft.series.map((s, sIdx) => ({
+      x: fYears,
+      y: fYears.map((y) => {
+        const row = agg.annualByYear[y];
+        if (!row || row.total === 0) return 0;
+        return +(((row.kw[sIdx] || 0) / row.total) * 100).toFixed(2);
+      }),
+      name: s.label,
+      type: "scatter",
+      mode: "lines+markers",
+      line: { width: 2.3 },
+      customdata: fYears.map((y) => (agg.annualByYear[y] ? agg.annualByYear[y].kw[sIdx] || 0 : 0)),
+      hovertemplate:
+        "<b>%{fullData.name}</b><br>%{x}: %{y:.2f}% (%{customdata:,} papers)<extra></extra>",
+    }));
+    Plotly.newPlot(
+      "chart-frontiers",
+      traces,
+      baseLayout({
+        hovermode: "x unified",
+        xaxis: { dtick: 1, title: `Year (${filterScopeLabel()})`, gridcolor: c.grid },
+        yaxis: { title: `% of ${currentCategory} Preprints Mentioning Topic`, gridcolor: c.grid },
+      }),
+      PLOT_CFG
+    );
+
+    const sorted = ft.series
+      .map((s, sIdx) => ({
+        label: s.label,
+        total: fYears.reduce((acc, y) => acc + (agg.annualByYear[y] ? agg.annualByYear[y].kw[sIdx] || 0 : 0), 0),
+      }))
+      .sort((a, b) => a.total - b.total);
+
+    Plotly.newPlot(
+      "chart-frontiers-bar",
+      [
+        {
+          type: "bar",
+          orientation: "h",
+          y: sorted.map((s) => s.label),
+          x: sorted.map((s) => s.total),
+          marker: { color: c.biorxiv },
+          hovertemplate: `<b>%{y}</b><br>Papers (${filterScopeLabel()}): %{x:,}<extra></extra>`,
+        },
+      ],
+      baseLayout({
+        margin: { l: 210, r: 24, t: 20, b: 48 },
+        xaxis: { title: `Unique Preprints Mentioning Term (${filterScopeLabel()})`, gridcolor: c.grid },
+      }),
+      PLOT_CFG
+    );
+    return;
+  }
+
   const qIdx = [];
   for (let i = 0; i < ft.quarters.length; i++) {
     const yr = Number(ft.quarters[i].slice(0, 4));
@@ -662,7 +920,6 @@ function renderFrontiers() {
     PLOT_CFG
   );
 
-  // Recompute bar chart totals for selected [startYear, endYear]
   const sorted = ft.series
     .map((s) => ({
       label: s.label,
@@ -693,11 +950,6 @@ function renderFrontiers() {
 function renderOpenScience(agg) {
   const c = themeColors();
   const lic = DATA.license_evolution;
-  const lIdx = [];
-  for (let i = 0; i < lic.years.length; i++) {
-    if (lic.years[i] >= startYear && lic.years[i] <= endYear) lIdx.push(i);
-  }
-  const fLicYears = lIdx.map((i) => lic.years[i]);
   const palette = {
     cc_by: "#0f766e",
     cc0: "#14b8a6",
@@ -707,66 +959,176 @@ function renderOpenScience(agg) {
     cc_no: "#64748b",
     other: "#cbd5e1",
   };
-  const bySrv = lic.by_server[currentServer];
-  const licTraces = Object.keys(bySrv).map((k) => ({
-    x: fLicYears,
-    y: lIdx.map((i) => bySrv[k][i]),
-    name: lic.labels[k] || k,
-    type: "scatter",
-    mode: "lines",
-    stackgroup: "one",
-    line: { width: 0.8, color: palette[k] || "#94a3b8" },
-  }));
-  Plotly.newPlot(
-    "chart-licenses",
-    licTraces,
-    baseLayout({
-      hovermode: "x unified",
-      xaxis: { dtick: 1, title: `Posting Year (${yearRangeLabel()})`, gridcolor: c.grid },
-      yaxis: { title: "Share of Preprints (%)", range: [0, 100], gridcolor: c.grid },
-    }),
-    PLOT_CFG
-  );
 
-  // Team size trend filtered by year
-  const tt = DATA.team_trends;
-  const tIdx = [];
-  for (let i = 0; i < tt.years.length; i++) {
-    if (tt.years[i] >= startYear && tt.years[i] <= endYear) tIdx.push(i);
-  }
-  const fTeamYears = tIdx.map((i) => tt.years[i]);
-  const teamTraces = [];
-  for (const srv of selectedServers()) {
-    const col = srv === "biorxiv" ? c.biorxiv : c.medrxiv;
-    teamTraces.push({
-      x: fTeamYears,
-      y: tIdx.map((i) => tt[srv].median[i]),
-      name: `${srv === "biorxiv" ? "bioRxiv" : "medRxiv"} Median`,
-      type: "scatter",
-      mode: "lines+markers",
-      line: { width: 2.5, color: col },
-    });
-    teamTraces.push({
-      x: fTeamYears,
-      y: tIdx.map((i) => tt[srv].q75[i]),
-      name: `${srv === "biorxiv" ? "bioRxiv" : "medRxiv"} 75th Pct`,
+  if (agg.isCategoryFiltered) {
+    const fYears = DATA.available_years.filter((y) => y >= Math.max(2014, startYear) && y <= endYear && agg.annualByYear[y]);
+    const licTraces = LICENSE_ORDER.map((lk, lIdx) => ({
+      x: fYears,
+      y: fYears.map((y) => {
+        const row = agg.annualByYear[y];
+        const tot = Math.max(row.total, 1);
+        return +((row.lic[lIdx] / tot) * 100).toFixed(2);
+      }),
+      name: lic.labels[lk] || lk,
       type: "scatter",
       mode: "lines",
-      line: { width: 1.2, dash: "dot", color: col },
-    });
-  }
-  Plotly.newPlot(
-    "chart-team-trend",
-    teamTraces,
-    baseLayout({
-      hovermode: "x unified",
-      xaxis: { dtick: 1, gridcolor: c.grid },
-      yaxis: { title: "Authors per Preprint", gridcolor: c.grid },
-    }),
-    PLOT_CFG
-  );
+      stackgroup: "one",
+      line: { width: 0.8, color: palette[lk] || "#94a3b8" },
+    }));
+    Plotly.newPlot(
+      "chart-licenses",
+      licTraces,
+      baseLayout({
+        hovermode: "x unified",
+        xaxis: { dtick: 1, title: `Posting Year (${filterScopeLabel()})`, gridcolor: c.grid },
+        yaxis: { title: "Share of Preprints (%)", range: [0, 100], gridcolor: c.grid },
+      }),
+      PLOT_CFG
+    );
 
-  // Team size vs Pub rate dynamically aggregated
+    // Mean authors over time for selected category
+    Plotly.newPlot(
+      "chart-team-trend",
+      [
+        {
+          x: fYears,
+          y: fYears.map((y) => {
+            const row = agg.annualByYear[y];
+            return row && row.total > 0 ? +(row.authorSum / row.total).toFixed(2) : null;
+          }),
+          name: `${currentCategory} Mean Authors`,
+          type: "scatter",
+          mode: "lines+markers",
+          line: { width: 2.5, color: currentServer === "medrxiv" ? c.medrxiv : c.biorxiv },
+        },
+      ],
+      baseLayout({
+        hovermode: "x unified",
+        xaxis: { dtick: 1, gridcolor: c.grid },
+        yaxis: { title: "Mean Authors per Preprint", gridcolor: c.grid },
+      }),
+      PLOT_CFG
+    );
+
+    // Annual withdrawals per 1,000 for selected category
+    Plotly.newPlot(
+      "chart-withdrawals",
+      [
+        {
+          x: fYears,
+          y: fYears.map((y) => {
+            const row = agg.annualByYear[y];
+            return row && row.total > 0 ? +((row.withdrawn / row.total) * 1000).toFixed(2) : 0;
+          }),
+          name: currentCategory,
+          type: "scatter",
+          mode: "lines+markers",
+          line: { color: c.danger, width: 2.3 },
+          customdata: fYears.map((y) => agg.annualByYear[y].withdrawn),
+          hovertemplate: `${currentCategory} %{x}: %{y} / 1k (%{customdata} withdrawn)<extra></extra>`,
+        },
+      ],
+      baseLayout({
+        hovermode: "x unified",
+        xaxis: { dtick: 1, title: `Year (${filterScopeLabel()})`, gridcolor: c.grid },
+        yaxis: { title: "Withdrawn per 1,000 Preprints", gridcolor: c.grid },
+      }),
+      PLOT_CFG
+    );
+  } else {
+    const lIdx = [];
+    for (let i = 0; i < lic.years.length; i++) {
+      if (lic.years[i] >= startYear && lic.years[i] <= endYear) lIdx.push(i);
+    }
+    const fLicYears = lIdx.map((i) => lic.years[i]);
+    const bySrv = lic.by_server[currentServer];
+    const licTraces = Object.keys(bySrv).map((k) => ({
+      x: fLicYears,
+      y: lIdx.map((i) => bySrv[k][i]),
+      name: lic.labels[k] || k,
+      type: "scatter",
+      mode: "lines",
+      stackgroup: "one",
+      line: { width: 0.8, color: palette[k] || "#94a3b8" },
+    }));
+    Plotly.newPlot(
+      "chart-licenses",
+      licTraces,
+      baseLayout({
+        hovermode: "x unified",
+        xaxis: { dtick: 1, title: `Posting Year (${yearRangeLabel()})`, gridcolor: c.grid },
+        yaxis: { title: "Share of Preprints (%)", range: [0, 100], gridcolor: c.grid },
+      }),
+      PLOT_CFG
+    );
+
+    const tt = DATA.team_trends;
+    const tIdx = [];
+    for (let i = 0; i < tt.years.length; i++) {
+      if (tt.years[i] >= startYear && tt.years[i] <= endYear) tIdx.push(i);
+    }
+    const fTeamYears = tIdx.map((i) => tt.years[i]);
+    const teamTraces = [];
+    for (const srv of selectedServers()) {
+      const col = srv === "biorxiv" ? c.biorxiv : c.medrxiv;
+      teamTraces.push({
+        x: fTeamYears,
+        y: tIdx.map((i) => tt[srv].median[i]),
+        name: `${srv === "biorxiv" ? "bioRxiv" : "medRxiv"} Median`,
+        type: "scatter",
+        mode: "lines+markers",
+        line: { width: 2.5, color: col },
+      });
+      teamTraces.push({
+        x: fTeamYears,
+        y: tIdx.map((i) => tt[srv].q75[i]),
+        name: `${srv === "biorxiv" ? "bioRxiv" : "medRxiv"} 75th Pct`,
+        type: "scatter",
+        mode: "lines",
+        line: { width: 1.2, dash: "dot", color: col },
+      });
+    }
+    Plotly.newPlot(
+      "chart-team-trend",
+      teamTraces,
+      baseLayout({
+        hovermode: "x unified",
+        xaxis: { dtick: 1, gridcolor: c.grid },
+        yaxis: { title: "Authors per Preprint", gridcolor: c.grid },
+      }),
+      PLOT_CFG
+    );
+
+    const wd = DATA.withdrawals_timeline;
+    const wIdx = [];
+    for (let i = 0; i < wd.periods.length; i++) {
+      const yr = Number(wd.periods[i].slice(0, 4));
+      if (yr >= startYear && yr <= endYear) wIdx.push(i);
+    }
+    const fPeriods = wIdx.map((i) => wd.periods[i]);
+    const wdTraces = selectedServers().map((srv) => ({
+      x: fPeriods,
+      y: wIdx.map((i) => wd[srv].rate_per_1k[i]),
+      name: srv === "biorxiv" ? "bioRxiv" : "medRxiv",
+      type: "scatter",
+      mode: "lines+markers",
+      line: { color: srv === "biorxiv" ? c.biorxiv : c.medrxiv, width: 2.3 },
+      customdata: wIdx.map((i) => wd[srv].count[i]),
+      hovertemplate: `${srv === "biorxiv" ? "bioRxiv" : "medRxiv"} %{x}: %{y} / 1k (%{customdata} withdrawn)<extra></extra>`,
+    }));
+    Plotly.newPlot(
+      "chart-withdrawals",
+      wdTraces,
+      baseLayout({
+        hovermode: "x unified",
+        xaxis: { title: `Half-Year Cohort (${yearRangeLabel()})`, gridcolor: c.grid },
+        yaxis: { title: "Withdrawn per 1,000 Preprints", gridcolor: c.grid },
+      }),
+      PLOT_CFG
+    );
+  }
+
+  // Team size vs Pub rate works identically for both All & Category slices!
   const tvp = TEAM_BUCKET_ORDER.map((b) => {
     const [cnt, pub] = agg.teamBuckets[b] || [0, 0];
     const ci = wilsonCiPct(pub, cnt);
@@ -792,37 +1154,8 @@ function renderOpenScience(agg) {
       },
     ],
     baseLayout({
-      xaxis: { title: `Author Team Size (${yearRangeLabel()})` },
+      xaxis: { title: `Author Team Size (${filterScopeLabel()})` },
       yaxis: { title: "Publication Rate (%)", range: [0, 85], gridcolor: c.grid },
-    }),
-    PLOT_CFG
-  );
-
-  // Withdrawals timeline filtered by year
-  const wd = DATA.withdrawals_timeline;
-  const wIdx = [];
-  for (let i = 0; i < wd.periods.length; i++) {
-    const yr = Number(wd.periods[i].slice(0, 4));
-    if (yr >= startYear && yr <= endYear) wIdx.push(i);
-  }
-  const fPeriods = wIdx.map((i) => wd.periods[i]);
-  const wdTraces = selectedServers().map((srv) => ({
-    x: fPeriods,
-    y: wIdx.map((i) => wd[srv].rate_per_1k[i]),
-    name: srv === "biorxiv" ? "bioRxiv" : "medRxiv",
-    type: "scatter",
-    mode: "lines+markers",
-    line: { color: srv === "biorxiv" ? c.biorxiv : c.medrxiv, width: 2.3 },
-    customdata: wIdx.map((i) => wd[srv].count[i]),
-    hovertemplate: `${srv === "biorxiv" ? "bioRxiv" : "medRxiv"} %{x}: %{y} / 1k (%{customdata} withdrawn)<extra></extra>`,
-  }));
-  Plotly.newPlot(
-    "chart-withdrawals",
-    wdTraces,
-    baseLayout({
-      hovermode: "x unified",
-      xaxis: { title: `Half-Year Cohort (${yearRangeLabel()})`, gridcolor: c.grid },
-      yaxis: { title: "Withdrawn per 1,000 Preprints", gridcolor: c.grid },
     }),
     PLOT_CFG
   );
@@ -843,6 +1176,11 @@ function renderClinicalTrials() {
 
   const c = themeColors();
   const servers = selectedServers();
+  const yearSource =
+    currentCategory !== "all" && ct.by_category
+      ? ct.by_category[currentCategory] || {}
+      : ct.by_year;
+
   let linkedDois = 0;
   let pubTrialDois = 0;
   let uniqueTrials = 0;
@@ -860,7 +1198,7 @@ function renderClinicalTrials() {
   const yrMed = [];
 
   for (const yr of ctYears) {
-    const blk = ct.by_year[String(yr)] || {};
+    const blk = yearSource[String(yr)] || {};
     yrBio.push(blk.biorxiv ? blk.biorxiv.kpi.trial_linked_dois : 0);
     yrMed.push(blk.medrxiv ? blk.medrxiv.kpi.trial_linked_dois : 0);
 
@@ -888,13 +1226,13 @@ function renderClinicalTrials() {
     .map(([r, n]) => `${r}: <strong>${fmtInt(n)}</strong>`)
     .join(" &bull; ");
   callout.innerHTML =
-    `<strong>Clinical Trial Registry Links (${yearRangeLabel()}):</strong> ${regSummary || "No trial links in selected range."} ` +
+    `<strong>Clinical Trial Registry Links (${filterScopeLabel()}):</strong> ${regSummary || "No trial links in selected slice."} ` +
     `&nbsp;|&nbsp; Enriched via ClinicalTrials.gov API v2 &amp; NIH iCite.`;
 
   const industryShare =
     enrichedNct > 0 ? +(((sponsors.INDUSTRY || 0) / enrichedNct) * 100).toFixed(1) : 0;
   const ctCards = [
-    { label: `Trial-Linked Preprints (${yearRangeLabel()})`, value: fmtInt(linkedDois), sub: `${fmtInt(uniqueTrials)} trial mentions` },
+    { label: `Trial-Linked Preprints`, value: fmtInt(linkedDois), sub: `${fmtInt(uniqueTrials)} trial mentions (${filterScopeLabel()})` },
     { label: "Peer-Reviewed Rate", value: fmtPct(pubRate), sub: `${fmtInt(pubTrialDois)} published DOIs` },
     { label: "Enriched NCT Trials", value: fmtInt(enrichedNct), sub: `${fmtInt(withResults)} with posted results` },
     { label: "Industry-Sponsored", value: fmtPct(industryShare), sub: `${fmtInt(sponsors.INDUSTRY || 0)} INDUSTRY vs ${fmtInt(sponsors.OTHER || 0)} Academic/Other` },
@@ -910,7 +1248,6 @@ function renderClinicalTrials() {
     )
     .join("");
 
-  // 1. Trial-linked preprints by year
   const yrTraces = [];
   if (currentServer === "all" || currentServer === "biorxiv") {
     yrTraces.push({ x: ctYears, y: yrBio, name: "bioRxiv", type: "bar", marker: { color: c.biorxiv } });
@@ -923,13 +1260,12 @@ function renderClinicalTrials() {
     yrTraces,
     baseLayout({
       barmode: "stack",
-      xaxis: { dtick: 1, title: `Posting Year (${yearRangeLabel()})`, gridcolor: c.grid },
+      xaxis: { dtick: 1, title: `Posting Year (${filterScopeLabel()})`, gridcolor: c.grid },
       yaxis: { title: "Trial-Linked Preprints", gridcolor: c.grid },
     }),
     PLOT_CFG
   );
 
-  // 2. Phases bar chart
   const phaseEntries = Object.entries(phases).sort((a, b) => a[1] - b[1]);
   Plotly.newPlot(
     "chart-ct-phases",
@@ -951,7 +1287,6 @@ function renderClinicalTrials() {
     PLOT_CFG
   );
 
-  // 3. Trial Status bar chart
   const statusEntries = Object.entries(statuses).sort((a, b) => a[1] - b[1]).slice(-10);
   Plotly.newPlot(
     "chart-ct-status",
@@ -973,7 +1308,6 @@ function renderClinicalTrials() {
     PLOT_CFG
   );
 
-  // 4. Top Clinical Conditions
   const condEntries = Object.entries(conditions).sort((a, b) => b[1] - a[1]).slice(0, 15).reverse();
   Plotly.newPlot(
     "chart-ct-conditions",
@@ -996,24 +1330,24 @@ function renderClinicalTrials() {
     PLOT_CFG
   );
 
-  // 5. Downstream NIH iCite translational impact
   const ds = ct.downstream_icite || {};
   const dsBox = document.getElementById("ct-downstream-summary");
   const dsTbody = document.getElementById("ct-downstream-tbody");
   if (!ds.evaluated_published_dois) {
     dsBox.innerHTML =
-      "No NIH iCite downstream records cached yet. Run <code>.venv/bin/python scripts/check_clinical_trials.py trace-downstream --limit 500</code> then <code>scripts/run_etl.py --skip-parquet</code> to trace basic-science papers cited by later clinical trials.";
+      "No NIH iCite downstream records cached yet. Run <code>.venv/bin/python scripts/check_clinical_trials.py trace-downstream --limit 500</code> then <code>scripts/run_etl.py --skip-parquet</code>.";
     dsTbody.innerHTML = "";
   } else {
     dsBox.innerHTML =
       `Evaluated <strong>${fmtInt(ds.evaluated_published_dois)}</strong> published papers (<strong>${fmtInt(ds.resolved_pmids)}</strong> PubMed PMIDs resolved): ` +
       `<strong>${fmtInt(ds.cited_by_clinical_trials_count)}</strong> (<strong>${ds.cited_by_clinical_trials_pct}%</strong>) have already been cited by clinical trials/guidelines! ` +
-      `Median NIH APT (Approximate Potential to Translate): <strong>${ds.median_apt ?? "—"}</strong> (${fmtInt(ds.high_apt_count_ge_0_5)} papers with APT &ge; 0.50).`;
+      `Median NIH APT: <strong>${ds.median_apt ?? "—"}</strong> (${fmtInt(ds.high_apt_count_ge_0_5)} papers with APT &ge; 0.50).`;
 
     const dsRows = (ds.top_translational_papers || []).filter((r) => {
       const okSrv = currentServer === "all" || r.server === currentServer;
       const okYr = !r.year || (r.year >= startYear && r.year <= endYear);
-      return okSrv && okYr;
+      const okCat = currentCategory === "all" || r.category === currentCategory;
+      return okSrv && okYr && okCat;
     });
     dsTbody.innerHTML = dsRows
       .slice(0, 25)
@@ -1030,11 +1364,11 @@ function renderClinicalTrials() {
       .join("");
   }
 
-  // 6. Featured trials table (filtered by year & server)
   currentTrialRows = (ct.featured_trials || []).filter((r) => {
     const okSrv = currentServer === "all" || r.server === currentServer;
     const okYr = !r.year || (r.year >= startYear && r.year <= endYear);
-    return okSrv && okYr;
+    const okCat = currentCategory === "all" || r.category === currentCategory;
+    return okSrv && okYr && okCat;
   });
   renderTrialsTable(document.getElementById("ct-search").value);
 }
@@ -1126,17 +1460,16 @@ function renderInstitutions(agg) {
         },
         customdata: currentInstList.map((d) => [d.institution, d.country || "—", d.avg_authors, d.mature_pub_rate_pct ?? "—"]),
         hovertemplate:
-          "<b>%{customdata[0]}</b> (%{customdata[1]})<br>Preprints (window): %{x:,}<br>Pub Rate (window): %{y}%<br>Mature Pub Rate: %{customdata[3]}%<br>Avg Authors: %{customdata[2]}<extra></extra>",
+          "<b>%{customdata[0]}</b> (%{customdata[1]})<br>Preprints (slice): %{x:,}<br>Pub Rate (slice): %{y}%<br>Mature Pub Rate: %{customdata[3]}%<br>Avg Authors: %{customdata[2]}<extra></extra>",
       },
     ],
     baseLayout({
-      xaxis: { title: `Preprints in ${yearRangeLabel()} (log scale)`, type: "log", gridcolor: c.grid },
-      yaxis: { title: `Publication Rate in ${yearRangeLabel()} (%)`, gridcolor: c.grid },
+      xaxis: { title: `Preprints in ${filterScopeLabel()} (log scale)`, type: "log", gridcolor: c.grid },
+      yaxis: { title: `Publication Rate in ${filterScopeLabel()} (%)`, gridcolor: c.grid },
     }),
     PLOT_CFG
   );
 
-  // Top 15 Countries chart
   const topCountries = Object.entries(agg.countries || {})
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15)
@@ -1150,12 +1483,12 @@ function renderInstitutions(agg) {
         y: topCountries.map(([k]) => k),
         x: topCountries.map(([, v]) => v),
         marker: { color: currentServer === "medrxiv" ? c.medrxiv : c.biorxiv },
-        hovertemplate: `<b>%{y}</b><br>Preprints (${yearRangeLabel()}): %{x:,}<extra></extra>`,
+        hovertemplate: `<b>%{y}</b><br>Preprints (${filterScopeLabel()}): %{x:,}<extra></extra>`,
       },
     ],
     baseLayout({
       margin: { l: 150, r: 20, t: 20, b: 48 },
-      xaxis: { title: `ROR-Matched Preprints (${yearRangeLabel()})`, gridcolor: c.grid },
+      xaxis: { title: `ROR-Matched Preprints (${filterScopeLabel()})`, gridcolor: c.grid },
       yaxis: { automargin: true },
     }),
     PLOT_CFG
@@ -1227,6 +1560,26 @@ function renderInstTable(query) {
     .join("");
 }
 
+function populateCategoryDropdown() {
+  const sel = document.getElementById("category-select");
+  const allCats = DATA.available_categories || [];
+  const visible =
+    currentServer === "all"
+      ? allCats
+      : allCats.filter((c) => (c.servers || []).includes(currentServer));
+
+  if (currentCategory !== "all" && !visible.some((c) => c.name === currentCategory)) {
+    currentCategory = "all";
+  }
+
+  sel.innerHTML =
+    `<option value="all">All Categories (${visible.length})</option>` +
+    visible
+      .map((c) => `<option value="${c.name.replace(/"/g, "&quot;")}">${c.name} (${fmtInt(c.count)})</option>`)
+      .join("");
+  sel.value = currentCategory;
+}
+
 function updatePresetHighlight() {
   const yrs = DATA.available_years;
   const minY = yrs[0];
@@ -1260,7 +1613,7 @@ function renderActiveTab() {
   renderKPIs(agg);
   if (currentTab === "overview") renderOverview(agg);
   else if (currentTab === "peer-review") renderPeerReview(agg);
-  else if (currentTab === "frontiers") renderFrontiers();
+  else if (currentTab === "frontiers") renderFrontiers(agg);
   else if (currentTab === "open-science") renderOpenScience(agg);
   else if (currentTab === "institutions") renderInstitutions(agg);
   else if (currentTab === "clinical-trials") renderClinicalTrials();
@@ -1292,6 +1645,12 @@ async function init() {
   endSel.innerHTML = optsHtml;
   startSel.value = String(startYear);
   endSel.value = String(endYear);
+
+  populateCategoryDropdown();
+  document.getElementById("category-select").addEventListener("change", (e) => {
+    currentCategory = e.target.value;
+    renderActiveTab();
+  });
 
   startSel.addEventListener("change", () => {
     const s = Number(startSel.value);
@@ -1329,6 +1688,7 @@ async function init() {
       document.querySelectorAll(".segmented button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       currentServer = btn.dataset.server;
+      populateCategoryDropdown();
       renderActiveTab();
     });
   });

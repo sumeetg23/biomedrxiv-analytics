@@ -112,3 +112,13 @@ def test_etl_materializes_parquet_and_exports_json_contract(tmp_path: Path) -> N
     assert summed_pub == 2
     assert loaded["by_year"]["2022"]["biorxiv"]["categories"]["Genomics"][0] == 1
     assert loaded["by_year"]["2020"]["medrxiv"]["kpi"]["withdrawn_count"] == 1
+
+    # Verify category-partitioned cubes reconcile with total DOIs
+    cat_sum_dois = sum(
+        srv_blk["k"][0]
+        for cat_obj in loaded["by_category"].values()
+        for yr_blk in cat_obj["by_year"].values()
+        for srv_blk in yr_blk.values()
+    )
+    assert cat_sum_dois == 3
+    assert any(c["name"] == "Genomics" for c in loaded["available_categories"])

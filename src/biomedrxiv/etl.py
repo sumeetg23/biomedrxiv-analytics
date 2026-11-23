@@ -975,14 +975,149 @@ def build_analytics_payload(
                 "countries": country_map,
             }
 
+    # 14. Compact category-partitioned cubes for top-bar Subject Category filtering
+    month_index_map = {m: idx for idx, m in enumerate(monthly_growth["months"])}
+    frontier_keys = list(FRONTIER_KEYWORDS.keys())
+    rev_order = ["1", "2", "3", "4", "5+"]
+    team_order = ["1 (Solo)", "2–3", "4–6", "7–10", "11–20", "21+"]
+    type_keys_ordered = ["new results", "confirmatory results", "contradictory results"]
+
+    df_cat_base = df_cube.dropna(subset=["category_clean"]).copy()
+    df_cat_base["cat_title"] = df_cat_base["category_clean"].astype(str).str.title()
+    df_cat_base["lic_grp"] = df_cat_base["license_clean"].map(
+        lambda x: "cc0"
+        if str(x).startswith("cc0")
+        else (str(x) if str(x) in lic_order else "other")
+    )
+
+    # Category catalog with server membership & total counts for top-bar dropdown
+    cat_totals = df_cat_base.groupby("cat_title").size().sort_values(ascending=False)
+    cat_servers = df_cat_base.groupby("cat_title")["server_clean"].unique().to_dict()
+    available_categories = [
+        {
+            "name": str(cat),
+            "count": int(cnt),
+            "servers": sorted(str(s) for s in cat_servers.get(cat, [])),
+        }
+        for cat, cnt in cat_totals.items()
+    ]
+
+    by_category: dict[str, dict[str, Any]] = {}
+    for cat_name, cat_df in df_cat_base.groupby("cat_title", sort=False):
+        cat_years_map: dict[str, dict[str, Any]] = {}
+        for (yr_val, srv_val), g in cat_df.groupby(["year", "server_clean"], sort=True):
+            if pd.isna(yr_val):
+                continue
+            yr_s = str(int(yr_val))
+            srv_s = str(srv_val)
+
+            # KPI compact array: [unique_dois, version_rows, published, withdrawn, version_sum, max_ver, author_sum]
+            k_arr = [
+                int(len(g)),
+                int(g["version_row_count"].sum()) if "version_row_count" in g.columns else int(len(g)),
+                int(g["snapshot_is_published"].sum()),
+                int(g["ever_withdrawn"].sum()),
+                int(g["num_versions"].sum()),
+                int(g["num_versions"].max()),
+                int(g["author_count"].sum()),
+            ]
+
+            # Compact revisions [[cnt, pub], ...] in REVISION_ORDER
+            rev_g = g.groupby("rev_bucket")["snapshot_is_published"].agg(["size", "sum"])
+            rev_arr = [
+                [int(rev_g.loc[b, "size"]), int(rev_g.loc[b, "sum"])]
+                if b in rev_g.index
+                else [0, 0]
+                for b in rev_order
+            ]
+
+            # Compact team buckets [[cnt, pub], ...] in TEAM_BUCKET_ORDER
+            tm_g = g.dropna(subset=["team_bucket"]).groupby("team_bucket")["snapshot_is_published"].agg(["size", "sum"])
+            tm_arr = [
+                [int(tm_g.loc[b, "size"]), int(tm_g.loc[b, "sum"])]
+                if b in tm_g.index
+                else [0, 0]
+                for b in team_order
+            ]
+
+            # Compact licenses [cc_by, cc_by_nc_nd, cc_by_nc, cc_by_nd, cc_no, cc0, other]
+            lic_vc = g["lic_grp"].value_counts()
+            lic_arr = [int(lic_vc.get(lk, 0)) for lk in lic_order]
+
+            # Compact bioRxiv preprint types [[cnt, pub], ...]
+            tp_g = g[g["type_clean"].isin(type_keys_ordered)].groupby("type_clean")["snapshot_is_published"].agg(["size", "sum"])
+            tp_arr = [
+                [int(tp_g.loc[tk, "size"]), int(tp_g.loc[tk, "sum"])]
+                if tk in tp_g.index
+                else [0, 0]
+                for tk in type_keys_ordered
+            ]
+
+            # Frontier keyword counts [k0..k8]
+            kw_arr = [int(g[f"kw_{fk}"].sum()) if f"kw_{fk}" in g.columns else 0 for fk in frontier_keys]
+
+            # Top 10 publishers, countries, institutions per category-year-server
+            pub_vc = g["publisher_clean_grp"].dropna().value_counts().head(10)
+            pub_d = {str(k): int(v) for k, v in pub_vc.items() if str(k) != "Other Publishers"}
+
+            ctry_s = g["ror_country"].dropna()
+            ctry_vc = ctry_s[ctry_s != ""].value_counts().head(10)
+            ctry_d = {str(k): int(v) for k, v in ctry_vc.items()}
+
+            inst_g = (
+                g.dropna(subset=["institution_canonical"])
+                .groupby("institution_canonical")
+                .agg(
+                    cnt=("normalized_doi", "size"),
+                    pub=("snapshot_is_published", "sum"),
+                    asum=("author_count", "sum"),
+                )
+                .sort_values("cnt", ascending=False)
+                .head(10)
+            )
+            inst_d = {
+                str(inst): [int(r.cnt), int(r.pub), int(r.asum)]
+                for inst, r in inst_g.iterrows()
+            }
+
+            cat_years_map.setdefault(yr_s, {})[srv_s] = {
+                "k": k_arr,
+                "rev": rev_arr,
+                "team": tm_arr,
+                "lic": lic_arr,
+                "type": tp_arr,
+                "kw": kw_arr,
+                "pub": pub_d,
+                "ctry": ctry_d,
+                "inst": inst_d,
+            }
+
+        # Sparse monthly counts [[month_idx, biorxiv_cnt, medrxiv_cnt], ...]
+        m_piv = cat_df.groupby(["month", "server_clean"]).size().unstack(fill_value=0)
+        monthly_sparse = []
+        for m_str, row in m_piv.iterrows():
+            m_idx = month_index_map.get(str(m_str))
+            if m_idx is not None:
+                b_cnt = int(row["biorxiv"]) if "biorxiv" in row.index else 0
+                md_cnt = int(row["medrxiv"]) if "medrxiv" in row.index else 0
+                monthly_sparse.append([m_idx, b_cnt, md_cnt])
+        monthly_sparse.sort(key=lambda x: x[0])
+
+        by_category[str(cat_name)] = {
+            "by_year": cat_years_map,
+            "monthly": monthly_sparse,
+        }
+
     return {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "dataset_provenance": registry_meta,
         "quality_audit": audit,
         "available_years": available_years,
+        "available_categories": available_categories,
         "mature_cohort_cutoff_year": MATURE_COHORT_MAX_YEAR,
         "kpis": kpis,
         "by_year": by_year,
+        "by_category": by_category,
         "monthly_growth": monthly_growth,
         "annual_summary": annual_summary,
         "top_categories": top_categories,
@@ -1005,5 +1140,5 @@ def build_analytics_payload(
 def export_dashboard_json(payload: dict[str, Any], output_path: Path) -> Path:
     """Write the compact analytics JSON contract consumed by the web dashboard."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    output_path.write_text(json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8")
     return output_path

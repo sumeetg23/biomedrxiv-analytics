@@ -79,7 +79,8 @@ body {
   flex-wrap: wrap;
 }
 
-.year-filter {
+.year-filter,
+.category-filter {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -90,21 +91,27 @@ body {
   flex-wrap: wrap;
 }
 
-.year-filter label {
+.year-filter label,
+.category-filter label {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-muted);
 }
 
-.year-filter select {
+.year-filter select,
+.category-filter select {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   border-radius: 6px;
-  padding: 0.22rem 0.4rem;
+  padding: 0.22rem 0.45rem;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.category-filter select {
+  max-width: 230px;
 }
 
 .year-sep {
