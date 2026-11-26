@@ -1667,7 +1667,115 @@ function renderActiveTab() {
   else if (currentTab === "open-science") renderOpenScience(agg);
   else if (currentTab === "institutions") renderInstitutions(agg);
   else if (currentTab === "clinical-trials") renderClinicalTrials();
+  window.dispatchEvent(new CustomEvent("biomedrxiv:filterchange"));
 }
+
+/**
+ * Build a compact, grounded JSON slice representing the user's currently active
+ * dashboard filters (Subject Category x Year Range x Server) for the AI chat drawer.
+ */
+window.getDashboardChatContext = function () {
+  if (!DATA) return null;
+  const agg = aggregateWindow();
+  const topCategories = Object.entries(agg.categories)
+    .map(([name, [cnt, pub]]) => ({
+      category: name,
+      preprints: cnt,
+      pub_rate_pct: cnt > 0 ? +((pub / cnt) * 100).toFixed(1) : 0,
+    }))
+    .sort((a, b) => b.preprints - a.preprints)
+    .slice(0, 12);
+
+  const topPublishers = Object.entries(agg.publishers)
+    .filter(([k]) => k !== "Other Publishers")
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([publisher, count]) => ({ publisher, count }));
+
+  const revisions = REVISION_ORDER.map((b) => {
+    const [cnt, pub] = agg.revisions[b] || [0, 0];
+    return {
+      versions: b,
+      preprints: cnt,
+      pub_rate_pct: cnt > 0 ? +((pub / cnt) * 100).toFixed(1) : 0,
+    };
+  });
+
+  const topInstitutions = Object.entries(agg.institutions)
+    .map(([institution, [cnt, pub]]) => ({
+      institution,
+      country: (DATA.institution_metadata?.[institution] || {}).country || "",
+      preprints: cnt,
+      pub_rate_pct: cnt > 0 ? +((pub / cnt) * 100).toFixed(1) : 0,
+    }))
+    .sort((a, b) => b.preprints - a.preprints)
+    .slice(0, 12);
+
+  const topCountries = Object.entries(agg.countries || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([country, preprints]) => ({ country, preprints }));
+
+  // Compact Clinical Trials summary for active slice
+  let ctSummary = null;
+  const ct = DATA.clinical_trials;
+  if (ct && ct.by_year) {
+    const yearSrc =
+      currentCategory !== "all" && ct.by_category
+        ? ct.by_category[currentCategory] || {}
+        : ct.by_year;
+    let linked = 0;
+    let pubLinked = 0;
+    let enriched = 0;
+    const phases = {};
+    const sponsors = {};
+    for (const y of (ct.years || []).filter((yr) => yr >= startYear && yr <= endYear)) {
+      const blk = yearSrc[String(y)] || {};
+      for (const srv of selectedServers()) {
+        const s = blk[srv];
+        if (!s) continue;
+        linked += s.kpi.trial_linked_dois;
+        pubLinked += s.kpi.published_trial_dois;
+        enriched += s.kpi.enriched_nct_trials;
+        for (const [k, v] of Object.entries(s.phases || {})) phases[k] = (phases[k] || 0) + v;
+        for (const [k, v] of Object.entries(s.sponsor_classes || {})) sponsors[k] = (sponsors[k] || 0) + v;
+      }
+    }
+    ctSummary = {
+      trial_linked_preprints: linked,
+      published_trial_preprints: pubLinked,
+      enriched_nct_trials: enriched,
+      phases,
+      sponsor_classes: sponsors,
+      downstream_icite: ct.downstream_icite
+        ? {
+            evaluated: ct.downstream_icite.evaluated_published_dois,
+            cited_by_clinical_trials: ct.downstream_icite.cited_by_clinical_trials_count,
+            cited_pct: ct.downstream_icite.cited_by_clinical_trials_pct,
+          }
+        : null,
+    };
+  }
+
+  return {
+    scope: {
+      server: currentServer,
+      category: currentCategory,
+      year_start: startYear,
+      year_end: endYear,
+      label: `${filterScopeLabel()} • ${currentServer === "all" ? "All Servers" : currentServer}`,
+    },
+    dataset_snapshot: (DATA.dataset_provenance || {}).version_id || "local",
+    kpis: agg.kpi,
+    top_categories: topCategories,
+    top_publishers: topPublishers,
+    revisions_vs_pub: revisions,
+    top_institutions_ror: topInstitutions,
+    top_countries_ror: topCountries,
+    ror_dedup_audit: DATA.ror_dedup_audit || null,
+    clinical_trials: ctSummary,
+  };
+};
 
 async function init() {
   try {

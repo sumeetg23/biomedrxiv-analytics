@@ -1,0 +1,12 @@
+name = "biomedrxiv-gemini-proxy"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+GEMINI_MODEL = "gemini-4-hydrogen"
+ALLOWED_ORIGINS = "https://sumeetg23.github.io,http://127.0.0.1:8080,http://localhost:8080"
+RATE_LIMIT_MAX = "20"
+RATE_LIMIT_WINDOW_SEC = "600"
+
+# Set your secret via Cloudflare Dashboard or CLI (NEVER commit API keys here):
+#   npx wrangler secret put GEMINI_API_KEY

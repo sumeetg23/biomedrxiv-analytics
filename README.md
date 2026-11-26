@@ -50,12 +50,18 @@ Bio&Med-RxivDataset/
 ├── app/
 │   └── index.html                 # Local AI Analyst Chat + Direct DuckDB SQL UI
 ├── web/                           # Decoupled static web dashboard (GitHub Pages artifact)
-│   ├── index.html                 # Dashboard markup (6 tabs + year/server filters)
-│   ├── css/styles.css             # Responsive light/dark styling
+│   ├── index.html                 # Dashboard markup (6 tabs + year/subject/server filters + AI drawer)
+│   ├── config.js                  # Public Worker URL config for the GitHub Pages AI chat drawer
+│   ├── css/styles.css             # Editorial print light/dark styling
 │   ├── js/dashboard.js            # Plotly.js visualization controller
+│   ├── js/chat.js                 # Collapsible AI Analyst chat drawer client
 │   ├── data/dashboard_data.json   # Data contract produced by scripts/run_etl.py
 │   ├── serve.py                   # Lightweight local HTTP preview server
 │   └── .nojekyll
+├── worker/                        # Optional $0 Cloudflare Worker Gemini proxy for GitHub Pages
+│   ├── src/index.js               # Zero-dependency CORS + rate-limited Gemini Interactions proxy
+│   ├── wrangler.toml              # Wrangler deployment config
+│   └── README.md                  # 2-minute Cloudflare Dashboard or CLI deployment guide
 ├── docs/
 │   └── analysis_plan.md           # Full analysis plan, research questions & viz blueprint
 ├── tests/                         # Unit tests (pytest)
