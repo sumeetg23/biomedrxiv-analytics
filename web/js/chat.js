@@ -85,7 +85,8 @@
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data.error || `HTTP ${resp.status}`);
+        appendMessage("bot", `Service Notice (HTTP ${resp.status})`, data.error || `HTTP ${resp.status}`);
+        return;
       }
       appendMessage(
         "bot",

@@ -16,6 +16,7 @@
 
 const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1/interactions";
 const DEFAULT_MODEL = "gemini-4-hydrogen";
+const DEFAULT_FALLBACK_MODELS = ["gemini-4-argon", "gemini-3.5-flash-lite"];
 const MAX_QUESTION_CHARS = 1000;
 const MAX_CONTEXT_BYTES = 45_000;
 
@@ -228,57 +229,75 @@ export default {
       );
     }
 
-    const model = (env && env.GEMINI_MODEL) || DEFAULT_MODEL;
-    const geminiPayload = {
-      model,
-      input: question,
-      system_instruction: buildSystemInstruction(contextJson),
-      store: false,
-    };
+    const primaryModel = (env && env.GEMINI_MODEL) || DEFAULT_MODEL;
+    const fallbackList =
+      env && env.GEMINI_FALLBACK_MODELS
+        ? env.GEMINI_FALLBACK_MODELS.split(",").map((s) => s.trim()).filter(Boolean)
+        : DEFAULT_FALLBACK_MODELS;
+    const candidateModels = [
+      primaryModel,
+      ...fallbackList.filter((m) => m && m !== primaryModel),
+    ];
 
-    try {
-      const upstream = await fetch(GEMINI_INTERACTIONS_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": env.GEMINI_API_KEY,
-        },
-        body: JSON.stringify(geminiPayload),
-      });
+    const systemInstruction = buildSystemInstruction(contextJson);
+    let lastStatus = 502;
+    let lastError = "Failed to reach Gemini API.";
 
-      const upstreamData = await upstream.json();
-      if (!upstream.ok) {
+    for (const model of candidateModels) {
+      const geminiPayload = {
+        model,
+        input: question,
+        system_instruction: systemInstruction,
+        store: false,
+      };
+
+      try {
+        const upstream = await fetch(GEMINI_INTERACTIONS_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": env.GEMINI_API_KEY,
+          },
+          body: JSON.stringify(geminiPayload),
+        });
+
+        const upstreamData = await upstream.json();
+        if (upstream.ok) {
+          const answer = extractOutputText(upstreamData);
+          if (answer) {
+            return jsonResponse(
+              {
+                answer,
+                model,
+                scope: contextObj.scope || null,
+                remaining_requests: rl.remaining,
+              },
+              200,
+              corsOrigin
+            );
+          }
+          lastStatus = 502;
+          lastError = `${model} returned an empty response.`;
+          continue;
+        }
+
         const msg =
           (upstreamData && upstreamData.error && upstreamData.error.message) ||
           `Gemini API HTTP ${upstream.status}`;
-        return jsonResponse({ error: msg }, upstream.status >= 500 ? 502 : upstream.status, corsOrigin);
-      }
+        lastStatus = upstream.status >= 500 ? 503 : upstream.status;
+        lastError = msg;
 
-      const answer = extractOutputText(upstreamData);
-      if (!answer) {
-        return jsonResponse(
-          { error: "Gemini returned an empty response." },
-          502,
-          corsOrigin
-        );
+        // Fall back to next model automatically on transient capacity/rate spikes
+        if (upstream.status === 429 || upstream.status === 500 || upstream.status === 503) {
+          continue;
+        }
+        break;
+      } catch (err) {
+        lastStatus = 502;
+        lastError = err && err.message ? err.message : String(err);
       }
-
-      return jsonResponse(
-        {
-          answer,
-          model,
-          scope: contextObj.scope || null,
-          remaining_requests: rl.remaining,
-        },
-        200,
-        corsOrigin
-      );
-    } catch (err) {
-      return jsonResponse(
-        { error: `Failed to reach Gemini API: ${err && err.message ? err.message : String(err)}` },
-        502,
-        corsOrigin
-      );
     }
+
+    return jsonResponse({ error: lastError }, lastStatus, corsOrigin);
   },
 };
