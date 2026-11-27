@@ -17,8 +17,8 @@ WORKERS_AI_MODELS = "@cf/meta/llama-3.1-8b-instruct-fast,@cf/meta/llama-3.1-8b-i
 RAG_EMBEDDING_MODEL = "@cf/baai/bge-small-en-v1.5"
 RAG_TOP_K = "8"
 ALLOWED_ORIGINS = "https://sumeetg23.github.io,http://127.0.0.1:8080,http://localhost:8080"
-RATE_LIMIT_MAX = "20"
-RATE_LIMIT_WINDOW_SEC = "600"
+RATE_LIMIT_MAX = "3"
+RATE_LIMIT_WINDOW_SEC = "86400"
 
 # Set secrets via Cloudflare Dashboard (Settings -> Runtime variables and secrets) or CLI:
 #   npx wrangler secret put GEMINI_API_KEY

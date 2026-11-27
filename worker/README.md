@@ -9,7 +9,8 @@ A zero-dependency Cloudflare Worker (Free Tier: 100k req/day, $0/month, no credi
 ## Security Features
 - Keeps `GEMINI_API_KEY` and `GROQ_API_KEY` inside Cloudflare Worker Secrets (never exposed to browsers or GitHub).
 - Locks CORS strictly to `ALLOWED_ORIGINS` (`https://sumeetg23.github.io` + localhost dev).
-- Enforces per-IP sliding-window rate limiting (`20` requests per 10 minutes by default).
+- Enforces a **3 free questions / 24h** per-IP demo cap (`RATE_LIMIT_MAX=3`, `RATE_LIMIT_WINDOW_SEC=86400`), counting 1 Deep Search (`/sql-plan` + `/sql-summarize`) as exactly 1 question.
+- Supports optional **Bring Your Own Key (BYOK)** via HTTPS headers (`X-User-API-Key`, `X-User-Provider`: `gemini` | `groq` | `openai`), used in memory only and never logged or persisted.
 
 ---
 

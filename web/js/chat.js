@@ -2,6 +2,10 @@
 
 (function () {
   const STORAGE_KEY = "biomedrxiv_worker_url_override";
+  const BYOK_KEY_STORAGE = "biomedrxiv_byok_api_key";
+  const BYOK_PROVIDER_STORAGE = "biomedrxiv_byok_provider";
+  const FREE_QUOTA_STORAGE = "biomedrxiv_free_quota_v1";
+  let freeQuestionLimit = 3;
 
   const MODEL_DISPLAY_MAP = {
     "gemini-4-hydrogen": "Gemini 4 Hydrogen",
@@ -9,9 +13,112 @@
     "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
     "openai/gpt-oss-120b": "GPT-OSS 120B",
     "qwen/qwen3.8-27b": "Qwen 3.8 27B",
+    "gpt-4o-mini": "GPT-4o mini",
+    "gpt-4.1-mini": "GPT-4.1 mini",
     "@cf/meta/llama-3.1-8b-instruct-fast": "Llama 3.1 8B",
     "@cf/meta/llama-3.1-8b-instruct-fp8": "Llama 3.1 8B",
   };
+
+  const BYOK_PROVIDER_LABELS = {
+    gemini: "Gemini",
+    groq: "Groq",
+    openai: "OpenAI",
+  };
+
+  function getByokConfig() {
+    const key = (sessionStorage.getItem(BYOK_KEY_STORAGE) || "").trim();
+    const provider = (sessionStorage.getItem(BYOK_PROVIDER_STORAGE) || "gemini").trim().toLowerCase();
+    if (!key) return null;
+    return { key, provider: BYOK_PROVIDER_LABELS[provider] ? provider : "gemini" };
+  }
+
+  function todayUtcKey() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function readLocalQuota() {
+    const today = todayUtcKey();
+    try {
+      const raw = JSON.parse(localStorage.getItem(FREE_QUOTA_STORAGE) || "null");
+      if (raw && raw.date === today && typeof raw.used === "number") {
+        return raw;
+      }
+    } catch {}
+    return { date: today, used: 0 };
+  }
+
+  function writeLocalQuota(used) {
+    try {
+      localStorage.setItem(FREE_QUOTA_STORAGE, JSON.stringify({ date: todayUtcKey(), used: Math.max(0, used) }));
+    } catch {}
+  }
+
+  function buildAuthHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const byok = getByokConfig();
+    if (byok) {
+      headers["X-User-API-Key"] = byok.key;
+      headers["X-User-Provider"] = byok.provider;
+    }
+    return headers;
+  }
+
+  function updateQuotaAndByokUi() {
+    const byok = getByokConfig();
+    const pill = document.getElementById("chat-quota-pill");
+    const byokBtn = document.getElementById("chat-byok-btn");
+    const clearByokBtn = document.getElementById("chat-byok-clear");
+    const modelSelect = document.getElementById("chat-provider-select");
+
+    if (clearByokBtn) {
+      clearByokBtn.style.display = byok ? "inline-block" : "none";
+    }
+    if (byokBtn) {
+      byokBtn.textContent = byok ? `Key: ${BYOK_PROVIDER_LABELS[byok.provider]}` : "API Key";
+    }
+    if (modelSelect) {
+      modelSelect.disabled = Boolean(byok);
+      modelSelect.title = byok
+        ? `Using your ${BYOK_PROVIDER_LABELS[byok.provider]} API key (clear key to switch back to shared models)`
+        : "Select AI model";
+    }
+    if (pill) {
+      pill.classList.remove("quota-byok", "quota-empty");
+      if (byok) {
+        pill.textContent = `Own Key: ${BYOK_PROVIDER_LABELS[byok.provider]}`;
+        pill.classList.add("quota-byok");
+        pill.title = "Using your own API key (session only) — click to edit or clear";
+      } else {
+        const q = readLocalQuota();
+        const remaining = Math.max(0, freeQuestionLimit - q.used);
+        if (remaining > 0) {
+          pill.textContent = `${remaining} free left`;
+          pill.title = `${remaining} of ${freeQuestionLimit} free daily demo questions remaining — click to add your own API key`;
+        } else {
+          pill.textContent = "0 free left · Add Key";
+          pill.classList.add("quota-empty");
+          pill.title = "Daily free demo limit reached — click to add your own Gemini, Groq, or OpenAI API key";
+        }
+      }
+    }
+    syncSqlToggleState();
+  }
+
+  function openByokPanel(focusInput = true) {
+    const panel = document.getElementById("chat-byok-panel");
+    if (!panel) return;
+    panel.style.display = "block";
+    const byok = getByokConfig();
+    const provSel = document.getElementById("chat-byok-provider");
+    const keyInput = document.getElementById("chat-byok-input");
+    if (provSel && byok) provSel.value = byok.provider;
+    if (keyInput && focusInput) keyInput.focus();
+  }
+
+  function closeByokPanel() {
+    const panel = document.getElementById("chat-byok-panel");
+    if (panel) panel.style.display = "none";
+  }
 
   function formatModelName(rawModel, rawProvider) {
     if (rawModel && MODEL_DISPLAY_MAP[rawModel]) {
@@ -26,6 +133,7 @@
     }
     if (rawProvider === "gemini") return "Gemini 4";
     if (rawProvider === "groq") return "GPT-OSS 120B";
+    if (rawProvider === "openai") return "GPT-4o mini";
     if (rawProvider === "workers-ai" || rawProvider === "workers_ai") return "Llama 3.1 8B";
     return "Gemini 4";
   }
@@ -108,6 +216,11 @@
         const ok = Boolean(providers[key].configured);
         opt.disabled = !ok;
         opt.textContent = ok ? labels[key] : `${labels[key]} (unavailable)`;
+      }
+
+      if (info && info.free_quota && typeof info.free_quota.max_questions === "number") {
+        freeQuestionLimit = Math.max(1, info.free_quota.max_questions);
+        updateQuotaAndByokUi();
       }
 
       const ragBadge = document.getElementById("chat-rag-badge");
@@ -195,7 +308,7 @@
   function isSqlEnabledForProvider(provider) {
     const toggle = document.getElementById("chat-sql-toggle");
     if (!toggle || !toggle.checked) return false;
-    if (provider === "workers_ai") return false;
+    if (!getByokConfig() && provider === "workers_ai") return false;
     return Boolean(window.BioMedRxivDuckDB);
   }
 
@@ -204,7 +317,7 @@
     const toggle = document.getElementById("chat-sql-toggle");
     const label = document.getElementById("chat-sql-toggle-label");
     if (!toggle || !label) return;
-    const blocked = provider === "workers_ai";
+    const blocked = !getByokConfig() && provider === "workers_ai";
     toggle.disabled = blocked;
     label.classList.toggle("disabled", blocked);
     label.title = blocked
@@ -294,12 +407,16 @@
   }
 
   async function tryBrowserSqlWorkflow(workerUrl, question, ctx, provider) {
-    setStatusLine("Checking if exact 454K-row DuckDB SQL is needed…");
+    setStatusLine("Checking if exact 454K-row Deep Search is needed…");
     const planResp = await fetch(`${workerUrl}/sql-plan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(),
       body: JSON.stringify({ question, context: ctx, provider }),
     });
+    if (planResp.status === 429) {
+      const limitData = await planResp.json().catch(() => ({}));
+      return { rateLimited: true, data: limitData };
+    }
     if (!planResp.ok) return null; // Older Worker or transient error -> fall back cleanly to /ask
     const plan = await planResp.json();
     if (!plan || !plan.needs_sql || !plan.sql) return null;
@@ -309,10 +426,10 @@
       sqlResult = await window.BioMedRxivDuckDB.runQuery(plan.sql, setStatusLine);
     } catch (firstErr) {
       // One automatic self-repair attempt with DuckDB error feedback
-      setStatusLine("Refining DuckDB SQL query…");
+      setStatusLine("Refining database query…");
       const retryResp = await fetch(`${workerUrl}/sql-plan`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildAuthHeaders(),
         body: JSON.stringify({
           question,
           context: ctx,
@@ -330,10 +447,10 @@
       if (!sqlResult) throw firstErr;
     }
 
-    setStatusLine("Summarizing DuckDB SQL results…");
+    setStatusLine("Summarizing Deep Search results…");
     const sumResp = await fetch(`${workerUrl}/sql-summarize`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildAuthHeaders(),
       body: JSON.stringify({
         question,
         sql: sqlResult.sql,
@@ -345,9 +462,12 @@
       }),
     });
     const sumData = await sumResp.json();
+    if (sumResp.status === 429) {
+      return { rateLimited: true, data: sumData };
+    }
     if (!sumResp.ok) {
       return {
-        answer: `Executed DuckDB-Wasm query directly in your browser (${sqlResult.totalRows.toLocaleString()} rows in ${sqlResult.elapsedMs}ms), though AI summary was unavailable: ${sumData.error || sumResp.status}.`,
+        answer: `Executed Deep Search directly in your browser (${sqlResult.totalRows.toLocaleString()} rows in ${sqlResult.elapsedMs}ms), though AI summary was unavailable: ${sumData.error || sumResp.status}.`,
         provider: plan.provider || provider,
         model: plan.model || "duckdb-wasm",
         sqlResult,
@@ -357,14 +477,49 @@
       answer: sumData.answer,
       provider: sumData.provider,
       model: sumData.model,
+      freeQuota: sumData.free_quota || null,
+      byok: Boolean(sumData.byok),
       sqlResult,
     };
+  }
+
+  function handleFreeLimitReached(serverMsg) {
+    writeLocalQuota(freeQuestionLimit);
+    updateQuotaAndByokUi();
+    openByokPanel(true);
+    appendMessage(
+      "bot",
+      "Free Demo Limit Reached",
+      serverMsg ||
+        `You've used all ${freeQuestionLimit} free demo questions for today. Paste your own free **Gemini**, **Groq**, or **OpenAI** API key in the panel above to continue asking unlimited questions (stored only in this browser tab).`
+    );
+  }
+
+  function recordSuccessfulAnswerQuota(serverQuota, wasByok) {
+    if (wasByok || getByokConfig()) {
+      updateQuotaAndByokUi();
+      return;
+    }
+    if (serverQuota && typeof serverQuota.used === "number") {
+      if (typeof serverQuota.limit === "number") freeQuestionLimit = serverQuota.limit;
+      writeLocalQuota(serverQuota.used);
+    } else {
+      const q = readLocalQuota();
+      writeLocalQuota(q.used + 1);
+    }
+    updateQuotaAndByokUi();
   }
 
   async function sendQuestion(question) {
     const workerUrl = getWorkerUrl();
     if (!workerUrl) {
       updateSetupVisibility();
+      return;
+    }
+
+    const byok = getByokConfig();
+    if (!byok && readLocalQuota().used >= freeQuestionLimit) {
+      handleFreeLimitReached();
       return;
     }
 
@@ -379,17 +534,23 @@
     btn.disabled = true;
     btn.textContent = "…";
 
-    const provider = getSelectedProvider();
+    const provider = byok ? byok.provider : getSelectedProvider();
     try {
-      // Tier 2: Browser DuckDB-Wasm SQL over all 454,051 rows (Gemini & Groq only)
+      // Tier 2: Browser DuckDB-Wasm Deep Search over all 454,051 rows
       if (isSqlEnabledForProvider(provider)) {
         try {
           const sqlOut = await tryBrowserSqlWorkflow(workerUrl, question, ctx, provider);
+          if (sqlOut && sqlOut.rateLimited) {
+            handleFreeLimitReached(sqlOut.data && sqlOut.data.error);
+            return;
+          }
           if (sqlOut) {
+            recordSuccessfulAnswerQuota(sqlOut.freeQuota, sqlOut.byok);
             const label = formatModelName(sqlOut.model, sqlOut.provider);
+            const keyTag = sqlOut.byok ? " • Own Key" : "";
             appendMessage(
               "bot",
-              `${label} • Deep Search • ${sqlOut.sqlResult.elapsedMs}ms`,
+              `${label} • Deep Search • ${sqlOut.sqlResult.elapsedMs}ms${keyTag}`,
               sqlOut.answer,
               null,
               sqlOut.sqlResult
@@ -399,33 +560,40 @@
                 provider: sqlOut.provider || provider,
                 model: sqlOut.model || "unknown",
                 tier: "sql_454k",
+                byok: Boolean(sqlOut.byok),
                 sql_elapsed_ms: sqlOut.sqlResult.elapsedMs,
               });
             }
             return;
           }
         } catch (sqlErr) {
-          console.warn("DuckDB-Wasm SQL path fell back to Tier 0/1 RAG:", sqlErr);
+          console.warn("Deep Search SQL path fell back to Tier 0/1 RAG:", sqlErr);
         }
       }
 
       // Tier 0 (Dashboard JSON) + Tier 1 (Vectorize RAG)
-      setStatusLine("Searching Vectorize RAG & generating answer…");
+      setStatusLine("Searching papers & generating answer…");
       const resp = await fetch(`${workerUrl}/ask`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildAuthHeaders(),
         body: JSON.stringify({ question, context: ctx, provider }),
       });
       const data = await resp.json();
+      if (resp.status === 429 && data && data.code === "FREE_LIMIT_REACHED") {
+        handleFreeLimitReached(data.error);
+        return;
+      }
       if (!resp.ok) {
         appendMessage("bot", `Service Notice (HTTP ${resp.status})`, data.error || `HTTP ${resp.status}`);
         return;
       }
+      recordSuccessfulAnswerQuota(data.free_quota, data.byok);
       const modelLabel = formatModelName(data.model, data.provider);
-      const ragTag = data.rag_used ? " • RAG" : "";
+      const ragTag = data.rag_used ? " • Papers" : "";
+      const keyTag = data.byok ? " • Own Key" : "";
       appendMessage(
         "bot",
-        `${modelLabel}${ragTag}`,
+        `${modelLabel}${ragTag}${keyTag}`,
         data.answer,
         data.sources
       );
@@ -434,6 +602,7 @@
           provider: data.provider || provider,
           model: data.model || "unknown",
           tier: data.rag_used ? "rag" : "dashboard_json",
+          byok: Boolean(data.byok),
         });
       }
     } catch (err) {
@@ -576,6 +745,56 @@
       providerSelect.addEventListener("change", syncSqlToggleState);
       syncSqlToggleState();
     }
+
+    // BYOK API Key panel wiring (sessionStorage only)
+    const byokBtn = document.getElementById("chat-byok-btn");
+    const quotaPill = document.getElementById("chat-quota-pill");
+    const byokClose = document.getElementById("chat-byok-close");
+    const byokSave = document.getElementById("chat-byok-save");
+    const byokClear = document.getElementById("chat-byok-clear");
+    const byokProvider = document.getElementById("chat-byok-provider");
+    const byokInput = document.getElementById("chat-byok-input");
+
+    if (byokBtn) {
+      byokBtn.addEventListener("click", () => {
+        const panel = document.getElementById("chat-byok-panel");
+        if (panel && panel.style.display === "block") closeByokPanel();
+        else openByokPanel(true);
+      });
+    }
+    if (quotaPill) quotaPill.addEventListener("click", () => openByokPanel(true));
+    if (byokClose) byokClose.addEventListener("click", closeByokPanel);
+    if (byokSave && byokInput && byokProvider) {
+      byokSave.addEventListener("click", () => {
+        const key = byokInput.value.trim();
+        if (key.length < 8) {
+          byokInput.focus();
+          return;
+        }
+        const prov = byokProvider.value;
+        sessionStorage.setItem(BYOK_KEY_STORAGE, key);
+        sessionStorage.setItem(BYOK_PROVIDER_STORAGE, prov);
+        byokInput.value = "";
+        closeByokPanel();
+        updateQuotaAndByokUi();
+        appendMessage(
+          "bot",
+          "Own API Key Active",
+          `Now routing your questions using your **${BYOK_PROVIDER_LABELS[prov]}** key for this browser tab (unlimited Deep Search & paper Q&A).`
+        );
+      });
+    }
+    if (byokClear) {
+      byokClear.addEventListener("click", () => {
+        sessionStorage.removeItem(BYOK_KEY_STORAGE);
+        sessionStorage.removeItem(BYOK_PROVIDER_STORAGE);
+        if (byokInput) byokInput.value = "";
+        closeByokPanel();
+        updateQuotaAndByokUi();
+      });
+    }
+
+    updateQuotaAndByokUi();
 
     // Keep context pill fresh whenever dashboard filters change
     window.addEventListener("biomedrxiv:filterchange", updateContextBanner);

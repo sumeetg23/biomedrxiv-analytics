@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,17 +21,18 @@
         if (isLocal || typeof window.gtag !== "function") return;
         try {
           window.gtag("event", eventName, params || {});
-        } catch (_) {}
+        } catch (_) {  }
       };
     })();
   </script>
-  <link rel="stylesheet" href="./css/styles.css?v=20261127d" />
+  <link rel="stylesheet" href="./css/styles.css?v=20261127e" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8" defer></script>
   <script src="./config.js?v=20261127" defer></script>
   <script src="./js/dashboard.js?v=20261127c" defer></script>
   <script src="./js/duckdb_client.js?v=20261127" defer></script>
-  <script src="./js/chat.js?v=20261127d" defer></script>
+  <script src="./js/chat.js?v=20261127e" defer></script>
 </head>
+
 <body>
   <header class="topbar">
     <div class="topbar-inner">
@@ -51,7 +53,8 @@
           <select id="year-end" aria-label="End year"></select>
           <div class="year-presets">
             <button type="button" class="preset-btn active" data-preset="all">All</button>
-            <button type="button" class="preset-btn" data-preset="mature" title="First posted ≤ 2024 (avoids right-censoring)">&le;2024</button>
+            <button type="button" class="preset-btn" data-preset="mature"
+              title="First posted ≤ 2024 (avoids right-censoring)">&le;2024</button>
             <button type="button" class="preset-btn" data-preset="last5">Last 5Y</button>
             <button type="button" class="preset-btn" data-preset="covid">2020–21</button>
           </div>
@@ -61,7 +64,8 @@
           <button data-server="biorxiv">bioRxiv</button>
           <button data-server="medrxiv">medRxiv</button>
         </div>
-        <button id="open-chat-btn" class="icon-btn btn-chat" type="button" title="Open quick Ask AI drawer alongside this view">Ask AI</button>
+        <button id="open-chat-btn" class="icon-btn btn-chat" type="button"
+          title="Open quick Ask AI drawer alongside this view">Ask AI</button>
         <button id="theme-toggle" class="icon-btn" title="Toggle dark/light mode">Dark Mode</button>
       </div>
     </div>
@@ -75,7 +79,8 @@
   <div class="nav-tabs-wrap">
     <nav class="nav-tabs" role="tablist">
       <button class="tab-btn active" data-tab="overview" role="tab" aria-selected="true">Overview &amp; Growth</button>
-      <button class="tab-btn" data-tab="peer-review" role="tab" aria-selected="false">Peer Review &amp; Journals</button>
+      <button class="tab-btn" data-tab="peer-review" role="tab" aria-selected="false">Peer Review &amp;
+        Journals</button>
       <button class="tab-btn" data-tab="frontiers" role="tab" aria-selected="false">Research Frontiers (NLP)</button>
       <button class="tab-btn" data-tab="open-science" role="tab" aria-selected="false">Open Science &amp; Teams</button>
       <button class="tab-btn" data-tab="institutions" role="tab" aria-selected="false">Institutions &amp; Audit</button>
@@ -94,7 +99,8 @@
         <div class="card-header">
           <div>
             <h2>Monthly Preprint Submissions (2013 – 2026)</h2>
-            <p class="subtitle">Deduplicated unique DOIs by first posting date (v1), annotated with medRxiv launch and COVID-19 surge.</p>
+            <p class="subtitle">Deduplicated unique DOIs by first posting date (v1), annotated with medRxiv launch and
+              COVID-19 surge.</p>
           </div>
         </div>
         <div id="chart-monthly" class="plot"></div>
@@ -105,7 +111,8 @@
           <div class="card-header">
             <div>
               <h2>Top 20 Subject Categories</h2>
-              <p class="subtitle">Cleaned &amp; normalized categories (115 raw strings &rarr; 76 canonical). Hover for mature-cohort publication rate.</p>
+              <p class="subtitle">Cleaned &amp; normalized categories (115 raw strings &rarr; 76 canonical). Hover for
+                mature-cohort publication rate.</p>
             </div>
           </div>
           <div id="chart-categories" class="plot plot-tall"></div>
@@ -115,7 +122,8 @@
           <div class="card-header">
             <div>
               <h2>Annual Volume &amp; Snapshot Publication Rate</h2>
-              <p class="subtitle">Notice right-censoring in 2025–2026: recent preprints are still undergoing peer review.</p>
+              <p class="subtitle">Notice right-censoring in 2025–2026: recent preprints are still undergoing peer
+                review.</p>
             </div>
           </div>
           <div id="chart-annual" class="plot plot-tall"></div>
@@ -127,14 +135,16 @@
     <section class="tab-panel" id="tab-peer-review">
       <div class="callout callout-warn">
         <strong>Methodological Guardrail (Right-Censoring):</strong> Peer review typically takes 6–18+ months.
-        Aggregate comparisons below restrict to <strong>mature cohorts (first posted &le; 2024)</strong> so recent 2025–2026 submissions do not artificially depress conversion rates.
+        Aggregate comparisons below restrict to <strong>mature cohorts (first posted &le; 2024)</strong> so recent
+        2025–2026 submissions do not artificially depress conversion rates.
       </div>
 
       <div class="card">
         <div class="card-header">
           <div>
             <h2>Cohort Publication Rate Heatmap (Posting Year &times; Top 18 Categories)</h2>
-            <p class="subtitle">Percentage of unique DOIs linked to a peer-reviewed journal DOI. Exposes both disciplinary differences and right-censoring.</p>
+            <p class="subtitle">Percentage of unique DOIs linked to a peer-reviewed journal DOI. Exposes both
+              disciplinary differences and right-censoring.</p>
           </div>
         </div>
         <div id="chart-heatmap" class="plot plot-tall"></div>
@@ -145,7 +155,8 @@
           <div class="card-header">
             <div>
               <h2>Do Revisions Predict Peer-Reviewed Publication?</h2>
-              <p class="subtitle">Mature cohorts (&le; 2024) with Wilson 95% confidence intervals. Revising a preprint strongly signals active peer review.</p>
+              <p class="subtitle">Mature cohorts (&le; 2024) with Wilson 95% confidence intervals. Revising a preprint
+                strongly signals active peer review.</p>
             </div>
           </div>
           <div id="chart-revisions" class="plot"></div>
@@ -155,7 +166,8 @@
           <div class="card-header">
             <div>
               <h2>Top Publishers Absorbing Preprints</h2>
-              <p class="subtitle">Mapped via Crossref DOI prefix of published journal articles (updates with top-bar server filter).</p>
+              <p class="subtitle">Mapped via Crossref DOI prefix of published journal articles (updates with top-bar
+                server filter).</p>
             </div>
           </div>
           <div id="chart-publishers" class="plot"></div>
@@ -179,7 +191,8 @@
         <div class="card-header">
           <div>
             <h2>Emerging Biomedical Research Frontiers (2015 – 2026)</h2>
-            <p class="subtitle">Percentage of quarterly unique preprints mentioning each technology or topic in title/abstract. Click legend items to isolate curves.</p>
+            <p class="subtitle">Percentage of quarterly unique preprints mentioning each technology or topic in
+              title/abstract. Click legend items to isolate curves.</p>
           </div>
         </div>
         <div id="chart-frontiers" class="plot plot-tall"></div>
@@ -202,7 +215,8 @@
         <div class="card-header">
           <div>
             <h2>Open Science &amp; Creative Commons License Evolution (2014 – 2026)</h2>
-            <p class="subtitle">Share of unique preprints by normalized license type (updates with top-bar server filter).</p>
+            <p class="subtitle">Share of unique preprints by normalized license type (updates with top-bar server
+              filter).</p>
           </div>
         </div>
         <div id="chart-licenses" class="plot"></div>
@@ -234,7 +248,8 @@
         <div class="card-header">
           <div>
             <h2>Preprint Withdrawal Rate Timeline (Per 1,000 Preprints)</h2>
-            <p class="subtitle">Half-year withdrawal rate comparing bioRxiv vs. medRxiv (highlights 2020–2021 COVID-19 surge).</p>
+            <p class="subtitle">Half-year withdrawal rate comparing bioRxiv vs. medRxiv (highlights 2020–2021 COVID-19
+              surge).</p>
           </div>
         </div>
         <div id="chart-withdrawals" class="plot plot-compact"></div>
@@ -260,7 +275,8 @@
           <div class="card-header">
             <div>
               <h2>Top 15 Countries by Preprint Volume</h2>
-              <p class="subtitle">Geocoded via official ROR organization registry (updates with year &amp; server filters).</p>
+              <p class="subtitle">Geocoded via official ROR organization registry (updates with year &amp; server
+                filters).</p>
             </div>
           </div>
           <div id="chart-countries" class="plot"></div>
@@ -273,7 +289,8 @@
             <h2>Top 30 Corresponding Institutions (ROR-Deduplicated)</h2>
             <p class="subtitle">Filter by organization name, country, or type.</p>
           </div>
-          <input type="search" id="inst-search" class="search-input" placeholder="Search institutions or countries..." />
+          <input type="search" id="inst-search" class="search-input"
+            placeholder="Search institutions or countries..." />
         </div>
         <div class="table-wrap">
           <table>
@@ -311,7 +328,8 @@
           <div class="card-header">
             <div>
               <h2>Trial-Linked Preprints Over Time</h2>
-              <p class="subtitle">Unique preprints citing a registered clinical trial ID (NCT, ISRCTN, ChiCTR, ACTRN, EudraCT).</p>
+              <p class="subtitle">Unique preprints citing a registered clinical trial ID (NCT, ISRCTN, ChiCTR, ACTRN,
+                EudraCT).</p>
             </div>
           </div>
           <div id="chart-ct-yearly" class="plot"></div>
@@ -354,7 +372,8 @@
         <div class="card-header">
           <div>
             <h2>Downstream Translational Impact (NIH iCite)</h2>
-            <p class="subtitle">Peer-reviewed publications cited by subsequent clinical trials/guidelines (<code>cited_by_clin</code> &amp; NIH APT score).</p>
+            <p class="subtitle">Peer-reviewed publications cited by subsequent clinical trials/guidelines
+              (<code>cited_by_clin</code> &amp; NIH APT score).</p>
           </div>
         </div>
         <div id="ct-downstream-summary" class="callout" style="margin-bottom:0.75rem;"></div>
@@ -379,9 +398,11 @@
         <div class="card-header">
           <div>
             <h2>Trial-Linked Preprints Explorer</h2>
-            <p class="subtitle">Featured ClinicalTrials.gov-linked preprints filtered by active year range and server.</p>
+            <p class="subtitle">Featured ClinicalTrials.gov-linked preprints filtered by active year range and server.
+            </p>
           </div>
-          <input type="search" id="ct-search" class="search-input" placeholder="Search title, NCT ID, sponsor, phase..." />
+          <input type="search" id="ct-search" class="search-input"
+            placeholder="Search title, NCT ID, sponsor, phase..." />
         </div>
         <div class="table-wrap">
           <table>
@@ -423,17 +444,47 @@
           <p id="chat-scope-pill" class="chat-scope-pill">Context: loading...</p>
         </div>
         <div class="chat-header-actions">
-          <button id="chat-clear-btn" class="icon-btn icon-btn-subtle" type="button" title="Start a new chat">New Chat</button>
-          <button id="expand-chat-btn" class="icon-btn icon-btn-subtle" type="button" title="Open in full-page Ask AI tab">&#10530; Full View</button>
-          <button id="close-chat-btn" class="icon-btn" type="button" aria-label="Close chat drawer">&times; Close</button>
+          <button id="chat-byok-btn" class="icon-btn icon-btn-subtle" type="button" title="Use your own Gemini, Groq, or OpenAI API key">API Key</button>
+          <button id="chat-clear-btn" class="icon-btn icon-btn-subtle" type="button" title="Start a new chat">New
+            Chat</button>
+          <button id="expand-chat-btn" class="icon-btn icon-btn-subtle" type="button"
+            title="Open in full-page Ask AI tab">&#10530; Full View</button>
+          <button id="close-chat-btn" class="icon-btn" type="button" aria-label="Close chat drawer">&times;
+            Close</button>
+        </div>
+      </div>
+
+      <div id="chat-byok-panel" class="chat-byok-panel" style="display:none;">
+        <div class="chat-byok-head">
+          <strong>Use Your Own API Key (Unlimited)</strong>
+          <button id="chat-byok-close" class="chat-byok-close" type="button" aria-label="Close API key panel">&times;</button>
+        </div>
+        <p class="chat-byok-note">
+          Stored only in this tab's session memory (cleared automatically when you close the tab). Sent over HTTPS solely to run your query — never logged or stored.
+          Free keys: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Gemini</a> &middot;
+          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">Groq</a> &middot;
+          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI</a>
+        </p>
+        <div class="chat-byok-row">
+          <select id="chat-byok-provider" aria-label="Your API key provider">
+            <option value="gemini">Google Gemini</option>
+            <option value="groq">Groq (GPT-OSS 120B)</option>
+            <option value="openai">OpenAI (GPT-4o mini)</option>
+          </select>
+          <input id="chat-byok-input" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your API key..." />
+          <button id="chat-byok-save" class="icon-btn btn-chat" type="button">Save</button>
+          <button id="chat-byok-clear" class="icon-btn icon-btn-subtle" type="button" style="display:none;">Clear</button>
         </div>
       </div>
 
       <div id="chat-setup-box" class="chat-setup-box" style="display:none;">
         <p><strong>Connect your free Cloudflare Worker proxy:</strong></p>
         <ol>
-          <li>Deploy <code>worker/src/index.js</code> on Cloudflare Workers (Free Tier) and add your <code>GEMINI_API_KEY</code> secret.</li>
-          <li>Paste the deployed Worker URL into <code>web/config.js</code> (or test it right now for this session below):</li>
+          <li>Deploy <code>worker/src/index.js</code> on Cloudflare Workers (Free Tier) and add your
+            <code>GEMINI_API_KEY</code> secret.
+          </li>
+          <li>Paste the deployed Worker URL into <code>web/config.js</code> (or test it right now for this session
+            below):</li>
         </ol>
         <div class="chat-setup-row">
           <input id="chat-worker-url-input" type="url" placeholder="https://biomedrxiv-gemini-proxy.you.workers.dev" />
@@ -445,7 +496,8 @@
         <div id="chat-welcome" class="chat-welcome">
           <div class="chat-welcome-head">
             <h3>Ask across 454,051 BioRxiv &amp; MedRxiv Preprints</h3>
-            <p>Queries your active dashboard filter slice, semantic Vectorize RAG (clinical trials &amp; NIH iCite), and full browser DuckDB-Wasm SQL.</p>
+            <p>Queries your active dashboard filter slice, semantic Vectorize RAG (clinical trials &amp; NIH iCite), and
+              full browser DuckDB-Wasm SQL.</p>
           </div>
           <div id="chat-drawer-suggestions" class="chat-suggestions">
             <button type="button" class="chat-chip">
@@ -454,7 +506,8 @@
             </button>
             <button type="button" class="chat-chip">
               <span class="chat-chip-kicker">Deep Search &middot; Trials</span>
-              <span class="chat-chip-text">Which Phase 3 clinical trials on medRxiv had the highest enrollment and got published in NEJM or Lancet?</span>
+              <span class="chat-chip-text">Which Phase 3 clinical trials on medRxiv had the highest enrollment and got
+                published in NEJM or Lancet?</span>
             </button>
             <button type="button" class="chat-chip">
               <span class="chat-chip-kicker">Deep Search &middot; Frontiers</span>
@@ -474,7 +527,9 @@
 
       <form id="chat-drawer-form" class="chat-composer">
         <div class="chat-composer-input-row">
-          <textarea id="chat-drawer-input" rows="1" placeholder="Ask anything about preprints, clinical trials, journals, or institutions..." required></textarea>
+          <textarea id="chat-drawer-input" rows="1"
+            placeholder="Ask anything about preprints, clinical trials, journals, or institutions..."
+            required></textarea>
           <button id="chat-drawer-send" class="icon-btn btn-chat" type="submit">Send</button>
         </div>
         <div id="chat-provider-bar" class="chat-composer-toolbar" style="display:none;">
@@ -488,15 +543,20 @@
             </select>
           </div>
           <div class="chat-toolbar-right">
-            <label class="chat-sql-toggle" id="chat-sql-toggle-label" title="Automatically queries all 454,051 preprints in your browser when exact filtering or ranking is needed">
+            <button id="chat-quota-pill" class="chat-quota-pill" type="button"
+              title="Daily free demo questions remaining — click to add your own API key">3 free left</button>
+            <label class="chat-sql-toggle" id="chat-sql-toggle-label"
+              title="Automatically queries all 454,051 preprints in your browser when exact filtering or ranking is needed">
               <input type="checkbox" id="chat-sql-toggle" checked />
               <span>Deep Search</span>
             </label>
-            <span id="chat-rag-badge" class="chat-rag-badge chat-rag-warn" style="display:none;" title="Semantic paper search is currently offline"></span>
+            <span id="chat-rag-badge" class="chat-rag-badge chat-rag-warn" style="display:none;"
+              title="Semantic paper search is currently offline"></span>
           </div>
         </div>
       </form>
     </div>
   </aside>
 </body>
+
 </html>

@@ -38,10 +38,12 @@
 
 const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1/interactions";
 const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
+const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 
 const DEFAULT_GEMINI_MODEL = "gemini-4-hydrogen";
 const DEFAULT_GEMINI_FALLBACKS = ["gemini-4-argon", "gemini-3.5-flash-lite"];
 const DEFAULT_GROQ_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"];
+const DEFAULT_OPENAI_MODELS = ["gpt-4o-mini", "gpt-4.1-mini"];
 const DEFAULT_WORKERS_AI_MODELS = [
   "@cf/meta/llama-3.1-8b-instruct-fast",
   "@cf/meta/llama-3.1-8b-instruct-fp8",
@@ -49,6 +51,10 @@ const DEFAULT_WORKERS_AI_MODELS = [
 const DEFAULT_RAG_EMBEDDING_MODEL = "@cf/baai/bge-small-en-v1.5";
 const DEFAULT_RAG_TOP_K = 8;
 const RAG_MIN_SCORE = 0.3;
+const DEFAULT_FREE_LIMIT = 3;
+const DEFAULT_FREE_WINDOW_SEC = 86_400; // 24 hours
+const BYOK_BURST_LIMIT = 60;
+const BYOK_BURST_WINDOW_SEC = 600; // 10 minutes
 
 const MAX_QUESTION_CHARS = 1000;
 const MAX_CONTEXT_BYTES = 45_000;
@@ -57,8 +63,10 @@ const MAX_SQL_RESULT_BYTES = 28_000;
 const SQL_FORBIDDEN_RE =
   /\b(DROP|DELETE|UPDATE|INSERT|ALTER|CREATE|REPLACE|TRUNCATE|ATTACH|DETACH|COPY|EXPORT|IMPORT|PRAGMA|LOAD|INSTALL|CALL|EXECUTE|SET|RESET|VACUUM|CHECKPOINT|USE|SECRET|READ_CSV|READ_CSV_AUTO|READ_JSON|READ_JSON_AUTO|READ_PARQUET|READ_TEXT|READ_BLOB|PARQUET_SCAN|CSV_SCAN|SQLITE_SCAN|GLOB|HTTP_GET)\b/i;
 
-// Lightweight per-isolate sliding-window rate limiter (zero KV cost on Free tier)
-const rateBuckets = new Map();
+// Lightweight per-isolate sliding-window rate limiters (zero KV cost on Free tier)
+const freeQuotaBuckets = new Map();
+const sqlPlanBuckets = new Map();
+const byokBurstBuckets = new Map();
 
 function parseCsvList(raw, fallback) {
   if (!raw || typeof raw !== "string") return fallback;
@@ -88,7 +96,7 @@ function resolveCorsOrigin(request, env) {
 function corsHeaders(corsOrigin) {
   const headers = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-User-API-Key, X-User-Provider",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
@@ -108,30 +116,43 @@ function jsonResponse(body, status, corsOrigin) {
   });
 }
 
-function checkRateLimit(ip, env) {
-  const limit = Number((env && env.RATE_LIMIT_MAX) || 20);
-  const windowMs = Number((env && env.RATE_LIMIT_WINDOW_SEC) || 600) * 1000;
+function checkWindowQuota(bucketMap, ip, limit, windowSec, consume) {
+  const windowMs = windowSec * 1000;
   const now = Date.now();
   const cutoff = now - windowMs;
 
-  const existing = (rateBuckets.get(ip) || []).filter((ts) => ts > cutoff);
+  const existing = (bucketMap.get(ip) || []).filter((ts) => ts > cutoff);
   if (existing.length >= limit) {
     const retryAfterSec = Math.max(1, Math.ceil((existing[0] + windowMs - now) / 1000));
-    rateBuckets.set(ip, existing);
-    return { allowed: false, remaining: 0, retryAfterSec };
+    bucketMap.set(ip, existing);
+    return { allowed: false, limit, used: existing.length, remaining: 0, retryAfterSec };
   }
 
-  existing.push(now);
-  rateBuckets.set(ip, existing);
+  if (consume) {
+    existing.push(now);
+  }
+  bucketMap.set(ip, existing);
 
-  if (rateBuckets.size > 5000) {
-    for (const [key, timestamps] of rateBuckets.entries()) {
+  if (bucketMap.size > 5000) {
+    for (const [key, timestamps] of bucketMap.entries()) {
       const fresh = timestamps.filter((ts) => ts > cutoff);
-      if (fresh.length === 0) rateBuckets.delete(key);
-      else rateBuckets.set(key, fresh);
+      if (fresh.length === 0) bucketMap.delete(key);
+      else bucketMap.set(key, fresh);
     }
   }
-  return { allowed: true, remaining: limit - existing.length, retryAfterSec: 0 };
+  return {
+    allowed: true,
+    limit,
+    used: existing.length,
+    remaining: Math.max(0, limit - existing.length),
+    retryAfterSec: 0,
+  };
+}
+
+function getFreeQuotaConfig(env) {
+  const maxQuestions = Math.max(1, Number((env && env.RATE_LIMIT_MAX) || DEFAULT_FREE_LIMIT));
+  const windowSec = Math.max(60, Number((env && env.RATE_LIMIT_WINDOW_SEC) || DEFAULT_FREE_WINDOW_SEC));
+  return { maxQuestions, windowSec };
 }
 
 function stripReasoningTags(text) {
@@ -433,6 +454,55 @@ function buildSqlSummarySystemPrompt(contextJson, sql, columns, rows, totalRows)
   ].join("\n");
 }
 
+async function tryOpenAI(question, systemInstruction, env, attempts) {
+  if (!env || !env.OPENAI_API_KEY) return null;
+
+  const models = parseCsvList(env.OPENAI_MODELS, DEFAULT_OPENAI_MODELS);
+  for (const model of models) {
+    try {
+      const resp = await fetch(OPENAI_CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          max_tokens: 900,
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: question },
+          ],
+        }),
+      });
+
+      const data = await resp.json();
+      if (resp.ok) {
+        const raw =
+          data &&
+          data.choices &&
+          data.choices[0] &&
+          data.choices[0].message &&
+          data.choices[0].message.content;
+        const answer = stripReasoningTags(raw);
+        if (answer) return { provider: "openai", model, answer };
+        attempts.push(`openai/${model}: empty response`);
+        continue;
+      }
+
+      const msg = (data && data.error && data.error.message) || `HTTP ${resp.status}`;
+      attempts.push(`openai/${model}: ${msg}`);
+      if (resp.status === 401 || resp.status === 403) {
+        return null;
+      }
+    } catch (err) {
+      attempts.push(`openai/${model}: ${err && err.message ? err.message : String(err)}`);
+    }
+  }
+  return null;
+}
+
 async function runProviderCall(requestedProvider, question, systemInstruction, env, attempts, allowWorkersAi = true) {
   if (requestedProvider === "gemini") {
     if (!env || !env.GEMINI_API_KEY) {
@@ -446,6 +516,13 @@ async function runProviderCall(requestedProvider, question, systemInstruction, e
       return { error: "Provider 'groq' is not configured (missing GROQ_API_KEY).", status: 503 };
     }
     const r = await tryGroq(question, systemInstruction, env, attempts);
+    return r ? { result: r } : null;
+  }
+  if (requestedProvider === "openai") {
+    if (!env || !env.OPENAI_API_KEY) {
+      return { error: "Provider 'openai' requires your own OpenAI API key.", status: 400 };
+    }
+    const r = await tryOpenAI(question, systemInstruction, env, attempts);
     return r ? { result: r } : null;
   }
   if (requestedProvider === "workers_ai") {
@@ -658,9 +735,14 @@ export default {
           },
           sql_wasm: {
             configured: Boolean((env && env.GEMINI_API_KEY) || (env && env.GROQ_API_KEY)),
-            eligible_providers: ["gemini", "groq"],
+            eligible_providers: ["gemini", "groq", "openai"],
             views: ["preprints", "clinical_trials", "downstream_clinical"],
           },
+          free_quota: {
+            max_questions: getFreeQuotaConfig(env).maxQuestions,
+            window_sec: getFreeQuotaConfig(env).windowSec,
+          },
+          byok_providers: ["gemini", "groq", "openai"],
         },
         200,
         corsOrigin || "*"
@@ -685,8 +767,32 @@ export default {
       );
     }
 
+    // Optional Bring-Your-Own-Key (BYOK) via HTTPS headers — used in memory only, never logged or persisted
+    const userApiKey = (request.headers.get("X-User-API-Key") || "").trim();
+    const userProviderHeader = (request.headers.get("X-User-Provider") || "").trim().toLowerCase();
+    const usingByok = Boolean(userApiKey);
+    const BYOK_PROVIDERS = ["gemini", "groq", "openai"];
+
+    if (usingByok && !BYOK_PROVIDERS.includes(userProviderHeader)) {
+      return jsonResponse(
+        { error: `Invalid X-User-Provider '${userProviderHeader}'. Expected one of: ${BYOK_PROVIDERS.join(", ")}.` },
+        400,
+        corsOrigin
+      );
+    }
+
+    const effectiveEnv = usingByok
+      ? {
+          ...env,
+          GEMINI_API_KEY: userProviderHeader === "gemini" ? userApiKey : "",
+          GROQ_API_KEY: userProviderHeader === "groq" ? userApiKey : "",
+          OPENAI_API_KEY: userProviderHeader === "openai" ? userApiKey : "",
+        }
+      : env;
+
     const hasAnyProvider = Boolean(
-      (env && env.GEMINI_API_KEY) ||
+      usingByok ||
+        (env && env.GEMINI_API_KEY) ||
         (env && env.GROQ_API_KEY) ||
         (env && env.AI && typeof env.AI.run === "function")
     );
@@ -702,15 +808,57 @@ export default {
     }
 
     const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
-    const rl = checkRateLimit(clientIp, env);
-    if (!rl.allowed) {
-      return jsonResponse(
-        {
-          error: `Rate limit exceeded. Please wait ${rl.retryAfterSec} seconds before asking again.`,
-        },
-        429,
-        corsOrigin
-      );
+    const quotaCfg = getFreeQuotaConfig(env);
+    let quotaStatus = null;
+
+    if (usingByok) {
+      const burst = checkWindowQuota(byokBurstBuckets, clientIp, BYOK_BURST_LIMIT, BYOK_BURST_WINDOW_SEC, true);
+      if (!burst.allowed) {
+        return jsonResponse(
+          { error: `Too many requests. Please wait ${burst.retryAfterSec} seconds.` },
+          429,
+          corsOrigin
+        );
+      }
+      quotaStatus = { limit: null, remaining: null, used: null, byok: true };
+    } else {
+      // Check shared free demo quota (3 questions / 24h by default).
+      // Do NOT consume on /sql-plan so 1 Deep Search question counts as exactly 1 free question.
+      const peek = checkWindowQuota(freeQuotaBuckets, clientIp, quotaCfg.maxQuestions, quotaCfg.windowSec, false);
+      if (!peek.allowed) {
+        return jsonResponse(
+          {
+            error: `You have used all ${quotaCfg.maxQuestions} free demo questions for today. Add your own Gemini, Groq, or OpenAI API key to continue asking unlimited questions.`,
+            code: "FREE_LIMIT_REACHED",
+            free_limit: quotaCfg.maxQuestions,
+            retry_after_sec: peek.retryAfterSec,
+          },
+          429,
+          corsOrigin
+        );
+      }
+      if (url.pathname === "/sql-plan") {
+        const planGuard = checkWindowQuota(
+          sqlPlanBuckets,
+          clientIp,
+          quotaCfg.maxQuestions * 4,
+          quotaCfg.windowSec,
+          true
+        );
+        if (!planGuard.allowed) {
+          return jsonResponse(
+            {
+              error: `Free query planning limit reached. Add your own API key to continue.`,
+              code: "FREE_LIMIT_REACHED",
+              free_limit: quotaCfg.maxQuestions,
+              retry_after_sec: planGuard.retryAfterSec,
+            },
+            429,
+            corsOrigin
+          );
+        }
+      }
+      quotaStatus = { limit: peek.limit, remaining: peek.remaining, used: peek.used, byok: false };
     }
 
     let body;
@@ -739,32 +887,38 @@ export default {
       );
     }
 
-    const VALID_PROVIDERS = ["auto", "gemini", "groq", "workers_ai", "workers-ai"];
+    const VALID_PROVIDERS = ["auto", "gemini", "groq", "openai", "workers_ai", "workers-ai"];
     const rawProvider =
       typeof body.provider === "string" && body.provider.trim()
         ? body.provider.trim().toLowerCase()
         : "auto";
     if (!VALID_PROVIDERS.includes(rawProvider)) {
       return jsonResponse(
-        { error: `Invalid provider '${rawProvider}'. Expected one of: auto, gemini, groq, workers_ai.` },
+        { error: `Invalid provider '${rawProvider}'. Expected one of: auto, gemini, groq, openai, workers_ai.` },
         400,
         corsOrigin
       );
     }
-    const requestedProvider = rawProvider === "workers-ai" ? "workers_ai" : rawProvider;
+    const requestedProvider = usingByok
+      ? userProviderHeader
+      : rawProvider === "workers-ai"
+      ? "workers_ai"
+      : rawProvider;
 
     // ------------------------------------------------------------------
-    // Route 1: POST /sql-plan (Gemini & Groq ONLY — disabled on 8B Workers AI)
+    // Route 1: POST /sql-plan (Gemini, Groq, OpenAI — disabled on 8B Workers AI)
     // ------------------------------------------------------------------
     if (url.pathname === "/sql-plan") {
-      const hasSqlCapableProvider = Boolean((env && env.GEMINI_API_KEY) || (env && env.GROQ_API_KEY));
+      const hasSqlCapableProvider = Boolean(
+        usingByok || (effectiveEnv && effectiveEnv.GEMINI_API_KEY) || (effectiveEnv && effectiveEnv.GROQ_API_KEY)
+      );
       if (requestedProvider === "workers_ai" || !hasSqlCapableProvider) {
         return jsonResponse(
           {
             needs_sql: false,
             sql: null,
-            reason: "SQL generation is enabled for Gemini and Groq; using Vectorize RAG for Workers AI.",
-            remaining_requests: rl.remaining,
+            reason: "SQL generation is enabled for Gemini, Groq, and OpenAI; using Vectorize RAG for Workers AI.",
+            remaining_requests: quotaStatus.remaining,
           },
           200,
           corsOrigin
@@ -775,7 +929,7 @@ export default {
       const prevErr = typeof body.previous_error === "string" ? body.previous_error.slice(0, 600) : "";
       const planSystemPrompt = buildSqlPlannerSystemPrompt(contextObj, prevSql, prevErr);
       const attempts = [];
-      const call = await runProviderCall(requestedProvider, question, planSystemPrompt, env, attempts, false);
+      const call = await runProviderCall(requestedProvider, question, planSystemPrompt, effectiveEnv, attempts, false);
       if (call && call.error) {
         return jsonResponse({ error: call.error }, call.status || 503, corsOrigin);
       }
@@ -785,7 +939,7 @@ export default {
             needs_sql: false,
             sql: null,
             reason: `SQL planner unavailable (${attempts.join(" | ")}); falling back to RAG.`,
-            remaining_requests: rl.remaining,
+            remaining_requests: quotaStatus.remaining,
           },
           200,
           corsOrigin
@@ -801,7 +955,7 @@ export default {
             reason: (parsed && parsed.reason) || "Answerable directly from dashboard summary + Vectorize RAG.",
             provider: call.result.provider,
             model: call.result.model,
-            remaining_requests: rl.remaining,
+            remaining_requests: quotaStatus.remaining,
           },
           200,
           corsOrigin
@@ -817,7 +971,7 @@ export default {
             reason: `Generated SQL rejected by safety validator: ${checked.error}`,
             provider: call.result.provider,
             model: call.result.model,
-            remaining_requests: rl.remaining,
+            remaining_requests: quotaStatus.remaining,
           },
           200,
           corsOrigin
@@ -831,7 +985,8 @@ export default {
           reason: parsed.reason || "Running read-only DuckDB SQL over all 454,051 preprints.",
           provider: call.result.provider,
           model: call.result.model,
-          remaining_requests: rl.remaining,
+          byok: usingByok,
+          remaining_requests: quotaStatus.remaining,
         },
         200,
         corsOrigin
@@ -857,21 +1012,33 @@ export default {
 
       const summaryPrompt = buildSqlSummarySystemPrompt(contextJson, checked.sql, columns, rawRows, totalRows);
       const attempts = [];
-      const call = await runProviderCall(requestedProvider, question, summaryPrompt, env, attempts, true);
+      const call = await runProviderCall(
+        requestedProvider,
+        question,
+        summaryPrompt,
+        effectiveEnv,
+        attempts,
+        !usingByok
+      );
       if (call && call.error) {
         return jsonResponse({ error: call.error }, call.status || 503, corsOrigin);
       }
       if (call && call.result) {
+        const afterQuota = usingByok
+          ? quotaStatus
+          : checkWindowQuota(freeQuotaBuckets, clientIp, quotaCfg.maxQuestions, quotaCfg.windowSec, true);
         return jsonResponse(
           {
             answer: call.result.answer,
             provider: call.result.provider,
             model: call.result.model,
             requested_provider: requestedProvider,
-            fallback_used: requestedProvider === "auto" && call.result.provider !== "gemini",
+            fallback_used: !usingByok && requestedProvider === "auto" && call.result.provider !== "gemini",
+            byok: usingByok,
             sql_used: true,
             scope: contextObj.scope || null,
-            remaining_requests: rl.remaining,
+            free_quota: usingByok ? null : { limit: afterQuota.limit, remaining: afterQuota.remaining, used: afterQuota.used },
+            remaining_requests: afterQuota.remaining,
           },
           200,
           corsOrigin
@@ -889,29 +1056,41 @@ export default {
     // ------------------------------------------------------------------
     const useRag = body.use_rag !== false;
     const ragResult = useRag
-      ? await retrieveRagSources(question, contextObj, env)
+      ? await retrieveRagSources(question, contextObj, effectiveEnv)
       : { sources: [], ragNote: "disabled_by_client" };
     const ragSources = ragResult.sources;
 
     const systemInstruction = buildSystemInstruction(contextJson, ragSources);
     const attempts = [];
-    const call = await runProviderCall(requestedProvider, question, systemInstruction, env, attempts, true);
+    const call = await runProviderCall(
+      requestedProvider,
+      question,
+      systemInstruction,
+      effectiveEnv,
+      attempts,
+      !usingByok
+    );
     if (call && call.error) {
       return jsonResponse({ error: call.error }, call.status || 503, corsOrigin);
     }
 
     if (call && call.result) {
+      const afterQuota = usingByok
+        ? quotaStatus
+        : checkWindowQuota(freeQuotaBuckets, clientIp, quotaCfg.maxQuestions, quotaCfg.windowSec, true);
       return jsonResponse(
         {
           answer: call.result.answer,
           provider: call.result.provider,
           model: call.result.model,
           requested_provider: requestedProvider,
-          fallback_used: requestedProvider === "auto" && call.result.provider !== "gemini",
+          fallback_used: !usingByok && requestedProvider === "auto" && call.result.provider !== "gemini",
+          byok: usingByok,
           rag_used: ragSources.length > 0,
           sources: ragSources,
           scope: contextObj.scope || null,
-          remaining_requests: rl.remaining,
+          free_quota: usingByok ? null : { limit: afterQuota.limit, remaining: afterQuota.remaining, used: afterQuota.used },
+          remaining_requests: afterQuota.remaining,
         },
         200,
         corsOrigin

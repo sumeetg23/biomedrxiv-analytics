@@ -953,6 +953,101 @@ a:hover {
   background: var(--surface-alt);
 }
 
+.chat-byok-panel {
+  padding: 0.72rem 1.15rem;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.chat-shell.mode-page .chat-byok-panel {
+  padding: 0.8rem 1.4rem;
+}
+
+.chat-byok-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
+.chat-byok-close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+}
+
+.chat-byok-close:hover {
+  color: var(--text);
+}
+
+.chat-byok-note {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+.chat-byok-note a {
+  color: var(--medrxiv);
+  text-decoration: underline;
+}
+
+.chat-byok-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.chat-byok-row select,
+.chat-byok-row input {
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 0.34rem 0.52rem;
+  font-size: 0.78rem;
+}
+
+.chat-byok-row input {
+  flex: 1;
+  min-width: 150px;
+}
+
+.chat-quota-pill {
+  font-size: 0.69rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat-quota-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chat-quota-pill.quota-byok {
+  border-color: var(--medrxiv);
+  color: var(--medrxiv);
+}
+
+.chat-quota-pill.quota-empty {
+  border-color: var(--warn);
+  color: var(--accent);
+  background: var(--surface-alt);
+}
+
 .chat-shell.mode-page .chat-sql-table-wrap {
   max-height: 360px;
 }
