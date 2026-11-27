@@ -24,12 +24,12 @@
       };
     })();
   </script>
-  <link rel="stylesheet" href="./css/styles.css?v=20261127c" />
+  <link rel="stylesheet" href="./css/styles.css?v=20261127d" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8" defer></script>
   <script src="./config.js?v=20261127" defer></script>
   <script src="./js/dashboard.js?v=20261127c" defer></script>
   <script src="./js/duckdb_client.js?v=20261127" defer></script>
-  <script src="./js/chat.js?v=20261127b" defer></script>
+  <script src="./js/chat.js?v=20261127d" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -453,11 +453,11 @@
               <span class="chat-chip-text">Summarize the key trends in this active filter slice</span>
             </button>
             <button type="button" class="chat-chip">
-              <span class="chat-chip-kicker">454K SQL &middot; Trials</span>
+              <span class="chat-chip-kicker">Deep Search &middot; Trials</span>
               <span class="chat-chip-text">Which Phase 3 clinical trials on medRxiv had the highest enrollment and got published in NEJM or Lancet?</span>
             </button>
             <button type="button" class="chat-chip">
-              <span class="chat-chip-kicker">454K SQL &middot; Frontiers</span>
+              <span class="chat-chip-kicker">Deep Search &middot; Frontiers</span>
               <span class="chat-chip-text">Top 10 institutions by GLP-1 or AlphaFold preprints</span>
             </button>
             <button type="button" class="chat-chip">
@@ -488,11 +488,11 @@
             </select>
           </div>
           <div class="chat-toolbar-right">
-            <label class="chat-sql-toggle" id="chat-sql-toggle-label" title="Auto-run browser DuckDB-Wasm SQL across all 454,051 preprints when needed (Auto, Gemini 4, GPT-OSS 120B)">
+            <label class="chat-sql-toggle" id="chat-sql-toggle-label" title="Automatically queries all 454,051 preprints in your browser when exact filtering or ranking is needed">
               <input type="checkbox" id="chat-sql-toggle" checked />
-              <span>SQL 454K</span>
+              <span>Deep Search</span>
             </label>
-            <span id="chat-rag-badge" class="chat-rag-badge" title="Cloudflare Vectorize semantic search over clinical trials & top preprints">RAG: checking</span>
+            <span id="chat-rag-badge" class="chat-rag-badge chat-rag-warn" style="display:none;" title="Semantic paper search is currently offline"></span>
           </div>
         </div>
       </form>

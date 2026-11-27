@@ -113,14 +113,24 @@
       const ragBadge = document.getElementById("chat-rag-badge");
       if (ragBadge) {
         const ragOn = Boolean(info && info.rag && info.rag.configured);
-        ragBadge.textContent = ragOn ? "RAG: ON" : "RAG: OFF";
-        ragBadge.classList.toggle("rag-on", ragOn);
-        ragBadge.title = ragOn
-          ? "Vectorize semantic search active (3,034 clinical trials + NIH iCite + top preprints)"
-          : "Vectorize index not bound yet — answering from dashboard aggregate slice";
+        if (ragOn) {
+          ragBadge.style.display = "none";
+          ragBadge.textContent = "";
+        } else {
+          ragBadge.style.display = "inline-block";
+          ragBadge.textContent = "Paper Search: Offline";
+          ragBadge.title = "Cloudflare Vectorize RAG binding is currently off — check /health for details";
+          console.warn("BioMedRxiv Ask AI health check: Vectorize RAG is OFF.", info);
+        }
       }
-    } catch {
-      // Leave default options intact if /health is unreachable
+    } catch (err) {
+      const ragBadge = document.getElementById("chat-rag-badge");
+      if (ragBadge) {
+        ragBadge.style.display = "inline-block";
+        ragBadge.textContent = "AI Proxy: Unreachable";
+        ragBadge.title = `Could not reach ${workerUrl}/health`;
+      }
+      console.warn("BioMedRxiv Ask AI /health check failed:", err);
     }
   }
 
@@ -198,8 +208,8 @@
     toggle.disabled = blocked;
     label.classList.toggle("disabled", blocked);
     label.title = blocked
-      ? "DuckDB-Wasm SQL is disabled on Llama 3.1 8B (uses Vectorize RAG + Dashboard JSON)"
-      : "Auto-run browser DuckDB-Wasm SQL across all 454,051 preprints when needed (Auto, Gemini 4, GPT-OSS 120B)";
+      ? "Deep Search is disabled on Llama 3.1 8B (uses fast paper search + dashboard summary)"
+      : "Automatically queries all 454,051 preprints in your browser when exact filtering or ranking is needed";
   }
 
   function formatSqlCell(col, val) {
@@ -379,7 +389,7 @@
             const label = formatModelName(sqlOut.model, sqlOut.provider);
             appendMessage(
               "bot",
-              `${label} • SQL 454K • ${sqlOut.sqlResult.elapsedMs}ms`,
+              `${label} • Deep Search • ${sqlOut.sqlResult.elapsedMs}ms`,
               sqlOut.answer,
               null,
               sqlOut.sqlResult

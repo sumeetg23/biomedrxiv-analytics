@@ -947,6 +947,12 @@ a:hover {
   background: var(--surface);
 }
 
+.chat-rag-badge.chat-rag-warn {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: var(--surface-alt);
+}
+
 .chat-shell.mode-page .chat-sql-table-wrap {
   max-height: 360px;
 }
