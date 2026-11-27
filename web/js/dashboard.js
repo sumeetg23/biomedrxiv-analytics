@@ -1660,7 +1660,13 @@ function setYearRange(newStart, newEnd) {
 
 function renderActiveTab() {
   const agg = aggregateWindow();
-  renderKPIs(agg);
+  const kpiGrid = document.getElementById("kpi-grid");
+  if (kpiGrid) {
+    kpiGrid.style.display = currentTab === "ask-ai" ? "none" : "";
+  }
+  if (currentTab !== "ask-ai") {
+    renderKPIs(agg);
+  }
   if (currentTab === "overview") renderOverview(agg);
   else if (currentTab === "peer-review") renderPeerReview(agg);
   else if (currentTab === "frontiers") renderFrontiers(agg);
@@ -1669,6 +1675,22 @@ function renderActiveTab() {
   else if (currentTab === "clinical-trials") renderClinicalTrials();
   window.dispatchEvent(new CustomEvent("biomedrxiv:filterchange"));
 }
+
+window.switchDashboardTab = function (tabName) {
+  const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  const targetPanel = document.getElementById(`tab-${tabName}`);
+  if (!targetBtn || !targetPanel) return;
+  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
+  targetBtn.classList.add("active");
+  currentTab = tabName;
+  targetPanel.classList.add("active");
+  renderActiveTab();
+  window.dispatchEvent(new CustomEvent("biomedrxiv:tabchange", { detail: { tab: tabName } }));
+  if (typeof window.trackDashboardEvent === "function") {
+    window.trackDashboardEvent("tab_switch", { tab_name: tabName });
+  }
+};
 
 /**
  * Build a compact, grounded JSON slice representing the user's currently active
@@ -1868,15 +1890,7 @@ async function init() {
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-      document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
-      btn.classList.add("active");
-      currentTab = btn.dataset.tab;
-      document.getElementById(`tab-${currentTab}`).classList.add("active");
-      renderActiveTab();
-      if (typeof window.trackDashboardEvent === "function") {
-        window.trackDashboardEvent("tab_switch", { tab_name: currentTab });
-      }
+      window.switchDashboardTab(btn.dataset.tab);
     });
   });
 

@@ -1,7 +1,34 @@
-/* Collapsible AI Analyst Chat Drawer backed by the Cloudflare Worker Gemini proxy */
+/* Dual-mode AI Analyst (Quick Side-Drawer + Full-Page Chat LLM Tab) */
 
 (function () {
   const STORAGE_KEY = "biomedrxiv_worker_url_override";
+
+  const MODEL_DISPLAY_MAP = {
+    "gemini-4-hydrogen": "Gemini 4 Hydrogen",
+    "gemini-4-argon": "Gemini 4 Argon",
+    "gemini-3.5-flash-lite": "Gemini 3.5 Flash-Lite",
+    "openai/gpt-oss-120b": "GPT-OSS 120B",
+    "qwen/qwen3.8-27b": "Qwen 3.8 27B",
+    "@cf/meta/llama-3.1-8b-instruct-fast": "Llama 3.1 8B",
+    "@cf/meta/llama-3.1-8b-instruct-fp8": "Llama 3.1 8B",
+  };
+
+  function formatModelName(rawModel, rawProvider) {
+    if (rawModel && MODEL_DISPLAY_MAP[rawModel]) {
+      return MODEL_DISPLAY_MAP[rawModel];
+    }
+    if (rawModel && typeof rawModel === "string") {
+      const base = rawModel.split("/").pop();
+      if (/llama-3\.1-8b/i.test(base)) return "Llama 3.1 8B";
+      if (/gpt-oss-120b/i.test(base)) return "GPT-OSS 120B";
+      if (/qwen3\.8-27b/i.test(base)) return "Qwen 3.8 27B";
+      return base;
+    }
+    if (rawProvider === "gemini") return "Gemini 4";
+    if (rawProvider === "groq") return "GPT-OSS 120B";
+    if (rawProvider === "workers-ai" || rawProvider === "workers_ai") return "Llama 3.1 8B";
+    return "Gemini 4";
+  }
 
   function getWorkerUrl() {
     const cfg = (window.BIOMEDRXIV_CHAT_CONFIG && window.BIOMEDRXIV_CHAT_CONFIG.workerUrl) || "";
@@ -29,27 +56,31 @@
     if (!pill || typeof window.getDashboardChatContext !== "function") return;
     const ctx = window.getDashboardChatContext();
     if (!ctx) return;
-    pill.textContent = `Context: ${ctx.scope.label}`;
+    pill.textContent = `Active Slice: ${ctx.scope.label}`;
   }
 
   let lastHealthUrl = "";
+  let currentMode = "drawer"; // "drawer" | "page"
 
   function updateSetupVisibility() {
     const setupBox = document.getElementById("chat-setup-box");
     const form = document.getElementById("chat-drawer-form");
-    const suggestions = document.getElementById("chat-drawer-suggestions");
+    const welcome = document.getElementById("chat-welcome");
     const providerBar = document.getElementById("chat-provider-bar");
+    const log = document.getElementById("chat-drawer-log");
     const url = getWorkerUrl();
     if (url) {
       setupBox.style.display = "none";
       form.style.display = "flex";
-      suggestions.style.display = "flex";
       if (providerBar) providerBar.style.display = "flex";
+      if (welcome && log) {
+        welcome.style.display = log.children.length === 0 ? "flex" : "none";
+      }
       refreshProviderHealth(url);
     } else {
       setupBox.style.display = "block";
       form.style.display = "none";
-      suggestions.style.display = "none";
+      if (welcome) welcome.style.display = "none";
       if (providerBar) providerBar.style.display = "none";
     }
   }
@@ -67,16 +98,16 @@
       if (!providers) return;
 
       const labels = {
-        gemini: `Gemini (${(providers.gemini.models && providers.gemini.models[0]) || "gemini-4-hydrogen"})`,
-        groq: `Groq (${(providers.groq.models && providers.groq.models[0]) || "openai/gpt-oss-120b"})`,
-        workers_ai: `Workers AI (${(providers.workers_ai.models && providers.workers_ai.models[0].split("/").pop()) || "llama-3.1-8b"})`,
+        gemini: "Gemini 4",
+        groq: formatModelName(providers.groq.models && providers.groq.models[0], "groq"),
+        workers_ai: formatModelName(providers.workers_ai.models && providers.workers_ai.models[0], "workers_ai"),
       };
       for (const opt of select.options) {
         const key = opt.value;
         if (key === "auto" || !providers[key]) continue;
         const ok = Boolean(providers[key].configured);
         opt.disabled = !ok;
-        opt.textContent = ok ? labels[key] : `${labels[key]} — not configured`;
+        opt.textContent = ok ? labels[key] : `${labels[key]} (unavailable)`;
       }
 
       const ragBadge = document.getElementById("chat-rag-badge");
@@ -167,8 +198,8 @@
     toggle.disabled = blocked;
     label.classList.toggle("disabled", blocked);
     label.title = blocked
-      ? "DuckDB-Wasm SQL is disabled on Workers AI 8B (uses Vectorize RAG + Dashboard JSON)"
-      : "Auto-run browser DuckDB-Wasm SQL across all 454,051 preprints when needed (Gemini & Groq)";
+      ? "DuckDB-Wasm SQL is disabled on Llama 3.1 8B (uses Vectorize RAG + Dashboard JSON)"
+      : "Auto-run browser DuckDB-Wasm SQL across all 454,051 preprints when needed (Auto, Gemini 4, GPT-OSS 120B)";
   }
 
   function formatSqlCell(col, val) {
@@ -222,6 +253,10 @@
 
   function appendMessage(role, meta, text, sources, sqlResult) {
     const log = document.getElementById("chat-drawer-log");
+    const stage = document.getElementById("chat-messages-stage");
+    const welcome = document.getElementById("chat-welcome");
+    if (welcome) welcome.style.display = "none";
+
     const div = document.createElement("div");
     div.className = `chat-msg ${role === "user" ? "chat-msg-user" : "chat-msg-bot"}`;
     div.innerHTML =
@@ -230,7 +265,22 @@
       (role === "bot" ? renderSqlResultHtml(sqlResult) : "") +
       (role === "bot" ? renderSourcesHtml(sources) : "");
     log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
+    if (stage) stage.scrollTop = stage.scrollHeight;
+  }
+
+  function clearConversation() {
+    const log = document.getElementById("chat-drawer-log");
+    const welcome = document.getElementById("chat-welcome");
+    if (log) log.innerHTML = "";
+    if (welcome && getWorkerUrl()) welcome.style.display = "flex";
+    const input = document.getElementById("chat-drawer-input");
+    if (input) input.focus();
+  }
+
+  function autoResizeInput(textarea) {
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(132, Math.max(38, textarea.scrollHeight))}px`;
   }
 
   async function tryBrowserSqlWorkflow(workerUrl, question, ctx, provider) {
@@ -326,10 +376,10 @@
         try {
           const sqlOut = await tryBrowserSqlWorkflow(workerUrl, question, ctx, provider);
           if (sqlOut) {
-            const pTag = sqlOut.provider ? `${sqlOut.provider} • ` : "";
+            const label = formatModelName(sqlOut.model, sqlOut.provider);
             appendMessage(
               "bot",
-              `AI Analyst (${pTag}${sqlOut.model || "gemini"} • SQL 454K • ${sqlOut.sqlResult.elapsedMs}ms)`,
+              `${label} • SQL 454K • ${sqlOut.sqlResult.elapsedMs}ms`,
               sqlOut.answer,
               null,
               sqlOut.sqlResult
@@ -361,11 +411,11 @@
         appendMessage("bot", `Service Notice (HTTP ${resp.status})`, data.error || `HTTP ${resp.status}`);
         return;
       }
-      const providerTag = data.provider ? `${data.provider} • ` : "";
+      const modelLabel = formatModelName(data.model, data.provider);
       const ragTag = data.rag_used ? " • RAG" : "";
       appendMessage(
         "bot",
-        `AI Analyst (${providerTag}${data.model || "gemini-4-hydrogen"}${ragTag})`,
+        `${modelLabel}${ragTag}`,
         data.answer,
         data.sources
       );
@@ -386,15 +436,53 @@
       setStatusLine("");
       btn.disabled = false;
       btn.textContent = "Send";
+      autoResizeInput(input);
       input.focus();
     }
   }
 
+  function mountChatInPage() {
+    const shell = document.getElementById("chat-shell");
+    const host = document.getElementById("chat-page-host");
+    if (!shell || !host) return;
+    closeDrawer();
+    if (shell.parentElement !== host) {
+      host.appendChild(shell);
+    }
+    shell.classList.remove("mode-drawer");
+    shell.classList.add("mode-page");
+    currentMode = "page";
+    updateContextBanner();
+    updateSetupVisibility();
+    const input = document.getElementById("chat-drawer-input");
+    if (input) input.focus();
+  }
+
+  function mountChatInDrawer() {
+    const shell = document.getElementById("chat-shell");
+    const drawer = document.getElementById("chat-drawer");
+    if (!shell || !drawer) return;
+    if (shell.parentElement !== drawer) {
+      drawer.appendChild(shell);
+    }
+    shell.classList.remove("mode-page");
+    shell.classList.add("mode-drawer");
+    currentMode = "drawer";
+  }
+
   function openDrawer() {
+    if (currentMode === "page") {
+      const input = document.getElementById("chat-drawer-input");
+      if (input) input.focus();
+      return;
+    }
+    mountChatInDrawer();
     document.getElementById("chat-drawer").classList.add("open");
     document.getElementById("chat-backdrop").classList.add("open");
     updateContextBanner();
     updateSetupVisibility();
+    const input = document.getElementById("chat-drawer-input");
+    if (input) input.focus();
     if (typeof window.trackDashboardEvent === "function") {
       window.trackDashboardEvent("ai_drawer_open", {});
     }
@@ -408,6 +496,8 @@
   function initChatDrawer() {
     const openBtn = document.getElementById("open-chat-btn");
     const closeBtn = document.getElementById("close-chat-btn");
+    const expandBtn = document.getElementById("expand-chat-btn");
+    const clearBtn = document.getElementById("chat-clear-btn");
     const backdrop = document.getElementById("chat-backdrop");
     const form = document.getElementById("chat-drawer-form");
     const input = document.getElementById("chat-drawer-input");
@@ -417,8 +507,17 @@
     if (!openBtn) return;
 
     openBtn.addEventListener("click", openDrawer);
-    closeBtn.addEventListener("click", closeDrawer);
-    backdrop.addEventListener("click", closeDrawer);
+    if (closeBtn) closeBtn.addEventListener("click", closeDrawer);
+    if (backdrop) backdrop.addEventListener("click", closeDrawer);
+    if (clearBtn) clearBtn.addEventListener("click", clearConversation);
+    if (expandBtn) {
+      expandBtn.addEventListener("click", () => {
+        closeDrawer();
+        if (typeof window.switchDashboardTab === "function") {
+          window.switchDashboardTab("ask-ai");
+        }
+      });
+    }
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeDrawer();
@@ -429,11 +528,24 @@
       const q = input.value.trim();
       if (!q) return;
       input.value = "";
+      autoResizeInput(input);
       sendQuestion(q);
     });
 
+    input.addEventListener("input", () => autoResizeInput(input));
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
     document.querySelectorAll(".chat-chip").forEach((chip) => {
-      chip.addEventListener("click", () => sendQuestion(chip.textContent.trim()));
+      chip.addEventListener("click", () => {
+        const textEl = chip.querySelector(".chat-chip-text");
+        const q = (textEl ? textEl.textContent : chip.textContent).trim();
+        if (q) sendQuestion(q);
+      });
     });
 
     if (saveUrlBtn && urlInput) {
@@ -457,6 +569,16 @@
 
     // Keep context pill fresh whenever dashboard filters change
     window.addEventListener("biomedrxiv:filterchange", updateContextBanner);
+
+    // Mount full-page Chat LLM workspace when switching to the Ask AI tab
+    window.addEventListener("biomedrxiv:tabchange", (e) => {
+      const tab = e && e.detail && e.detail.tab;
+      if (tab === "ask-ai") {
+        mountChatInPage();
+      } else {
+        mountChatInDrawer();
+      }
+    });
   }
 
   if (document.readyState === "loading") {
