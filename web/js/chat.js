@@ -32,20 +32,60 @@
     pill.textContent = `Context: ${ctx.scope.label}`;
   }
 
+  let lastHealthUrl = "";
+
   function updateSetupVisibility() {
     const setupBox = document.getElementById("chat-setup-box");
     const form = document.getElementById("chat-drawer-form");
     const suggestions = document.getElementById("chat-drawer-suggestions");
+    const providerBar = document.getElementById("chat-provider-bar");
     const url = getWorkerUrl();
     if (url) {
       setupBox.style.display = "none";
       form.style.display = "flex";
       suggestions.style.display = "flex";
+      if (providerBar) providerBar.style.display = "flex";
+      refreshProviderHealth(url);
     } else {
       setupBox.style.display = "block";
       form.style.display = "none";
       suggestions.style.display = "none";
+      if (providerBar) providerBar.style.display = "none";
     }
+  }
+
+  async function refreshProviderHealth(workerUrl) {
+    if (!workerUrl || workerUrl === lastHealthUrl) return;
+    lastHealthUrl = workerUrl;
+    const select = document.getElementById("chat-provider-select");
+    if (!select) return;
+    try {
+      const resp = await fetch(`${workerUrl}/health`, { cache: "no-store" });
+      if (!resp.ok) return;
+      const info = await resp.json();
+      const providers = info && info.providers;
+      if (!providers) return;
+
+      const labels = {
+        gemini: `Gemini (${(providers.gemini.models && providers.gemini.models[0]) || "gemini-4-hydrogen"})`,
+        groq: `Groq (${(providers.groq.models && providers.groq.models[0]) || "openai/gpt-oss-120b"})`,
+        workers_ai: `Workers AI (${(providers.workers_ai.models && providers.workers_ai.models[0].split("/").pop()) || "llama-3.1-8b"})`,
+      };
+      for (const opt of select.options) {
+        const key = opt.value;
+        if (key === "auto" || !providers[key]) continue;
+        const ok = Boolean(providers[key].configured);
+        opt.disabled = !ok;
+        opt.textContent = ok ? labels[key] : `${labels[key]} — not configured`;
+      }
+    } catch {
+      // Leave default options intact if /health is unreachable
+    }
+  }
+
+  function getSelectedProvider() {
+    const select = document.getElementById("chat-provider-select");
+    return select ? select.value : "auto";
   }
 
   function appendMessage(role, meta, text) {
@@ -77,11 +117,12 @@
     btn.disabled = true;
     btn.textContent = "…";
 
+    const provider = getSelectedProvider();
     try {
       const resp = await fetch(`${workerUrl}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, context: ctx }),
+        body: JSON.stringify({ question, context: ctx, provider }),
       });
       const data = await resp.json();
       if (!resp.ok) {

@@ -397,14 +397,46 @@ export default {
       );
     }
 
+    const VALID_PROVIDERS = ["auto", "gemini", "groq", "workers_ai", "workers-ai"];
+    const rawProvider =
+      typeof body.provider === "string" && body.provider.trim()
+        ? body.provider.trim().toLowerCase()
+        : "auto";
+    if (!VALID_PROVIDERS.includes(rawProvider)) {
+      return jsonResponse(
+        { error: `Invalid provider '${rawProvider}'. Expected one of: auto, gemini, groq, workers_ai.` },
+        400,
+        corsOrigin
+      );
+    }
+    const requestedProvider = rawProvider === "workers-ai" ? "workers_ai" : rawProvider;
+
     const systemInstruction = buildSystemInstruction(contextJson);
     const attempts = [];
 
-    // Multi-provider fallback cascade: Gemini -> Groq -> Cloudflare Workers AI
-    const result =
-      (await tryGemini(question, systemInstruction, env, attempts)) ||
-      (await tryGroq(question, systemInstruction, env, attempts)) ||
-      (await tryWorkersAI(question, systemInstruction, env, attempts));
+    let result = null;
+    if (requestedProvider === "gemini") {
+      if (!env || !env.GEMINI_API_KEY) {
+        return jsonResponse({ error: "Provider 'gemini' is not configured (missing GEMINI_API_KEY)." }, 503, corsOrigin);
+      }
+      result = await tryGemini(question, systemInstruction, env, attempts);
+    } else if (requestedProvider === "groq") {
+      if (!env || !env.GROQ_API_KEY) {
+        return jsonResponse({ error: "Provider 'groq' is not configured (missing GROQ_API_KEY)." }, 503, corsOrigin);
+      }
+      result = await tryGroq(question, systemInstruction, env, attempts);
+    } else if (requestedProvider === "workers_ai") {
+      if (!env || !env.AI || typeof env.AI.run !== "function") {
+        return jsonResponse({ error: "Provider 'workers_ai' is not configured (missing Workers AI binding `AI`)." }, 503, corsOrigin);
+      }
+      result = await tryWorkersAI(question, systemInstruction, env, attempts);
+    } else {
+      // Auto cascade: Gemini -> Groq -> Cloudflare Workers AI
+      result =
+        (await tryGemini(question, systemInstruction, env, attempts)) ||
+        (await tryGroq(question, systemInstruction, env, attempts)) ||
+        (await tryWorkersAI(question, systemInstruction, env, attempts));
+    }
 
     if (result) {
       return jsonResponse(
@@ -412,7 +444,8 @@ export default {
           answer: result.answer,
           provider: result.provider,
           model: result.model,
-          fallback_used: result.provider !== "gemini",
+          requested_provider: requestedProvider,
+          fallback_used: requestedProvider === "auto" && result.provider !== "gemini",
           scope: contextObj.scope || null,
           remaining_requests: rl.remaining,
         },
@@ -423,7 +456,7 @@ export default {
 
     return jsonResponse(
       {
-        error: `All configured LLM providers are currently unavailable. Attempts: ${attempts.join(" | ")}`,
+        error: `Requested provider (${requestedProvider}) unavailable. Attempts: ${attempts.join(" | ")}`,
       },
       503,
       corsOrigin

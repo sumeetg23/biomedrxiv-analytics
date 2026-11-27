@@ -581,6 +581,35 @@ a:hover {
   font-size: 0.83rem;
 }
 
+.chat-provider-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.15rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+  font-size: 0.76rem;
+}
+
+.chat-provider-bar label {
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+}
+
+.chat-provider-bar select {
+  flex: 1;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 0.28rem 0.5rem;
+  font-size: 0.77rem;
+  cursor: pointer;
+}
+
 .chat-suggestions {
   display: flex;
   flex-wrap: wrap;

@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BioRxiv &amp; MedRxiv Preprint Analytics Dashboard</title>
-  <link rel="stylesheet" href="./css/styles.css?v=20261126" />
+  <link rel="stylesheet" href="./css/styles.css?v=20261126e" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8" defer></script>
   <script src="./config.js?v=20261126b" defer></script>
   <script src="./js/dashboard.js?v=20261126" defer></script>
-  <script src="./js/chat.js?v=20261126d" defer></script>
+  <script src="./js/chat.js?v=20261126e" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -401,6 +401,16 @@
         <input id="chat-worker-url-input" type="url" placeholder="https://biomedrxiv-gemini-proxy.you.workers.dev" />
         <button id="chat-save-url-btn" class="icon-btn btn-chat" type="button">Connect</button>
       </div>
+    </div>
+
+    <div id="chat-provider-bar" class="chat-provider-bar" style="display:none;">
+      <label for="chat-provider-select">Engine:</label>
+      <select id="chat-provider-select" aria-label="AI model provider">
+        <option value="auto">Auto (Gemini &rarr; Groq &rarr; Workers AI)</option>
+        <option value="gemini">Gemini (Google AI)</option>
+        <option value="groq">Groq (gpt-oss-120b)</option>
+        <option value="workers_ai">Workers AI (Llama 3.1 8B)</option>
+      </select>
     </div>
 
     <div id="chat-drawer-suggestions" class="chat-suggestions">
