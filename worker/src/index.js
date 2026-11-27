@@ -1,7 +1,7 @@
 /**
  * Cloudflare Worker — Multi-Provider LLM + Vectorize RAG Proxy for BioRxiv & MedRxiv Dashboard
  *
- * Unified Architecture (Steps 1 & 2):
+ * Unified Architecture (Steps 1, 2 & 3):
  *   LLM Fallback Chain:
  *     1. Primary:    Google Gemini Interactions API (gemini-4-hydrogen -> gemini-4-argon -> gemini-3.5-flash-lite)
  *     2. Fallback 1: Groq OpenAI-compatible API (openai/gpt-oss-120b -> qwen/qwen3.8-27b)
@@ -9,7 +9,9 @@
  *   Data Retrieval Tiers:
  *     - Tier 0: Active 4.7 KB Dashboard JSON slice (KPIs, trends, charts)
  *     - Tier 1: Cloudflare Vectorize RAG (`env.VECTORIZE` + `@cf/baai/bge-small-en-v1.5`)
- *               covering all 3,034 clinical trials + 400 NIH iCite papers + ~9,000 top preprints
+ *               covering all 3,034 clinical trials + 399 NIH iCite papers + ~9,067 top preprints
+ *     - Tier 2: Browser DuckDB-Wasm SQL over all 454,051 rows (`POST /sql-plan` + `POST /sql-summarize`,
+ *               enabled on Gemini & Groq only; disabled on 8B Workers AI fallback)
  *
  * Zero external dependencies: deploy via `wrangler deploy` OR paste directly into
  * the Cloudflare Workers Web Dashboard editor.
@@ -50,6 +52,10 @@ const RAG_MIN_SCORE = 0.3;
 
 const MAX_QUESTION_CHARS = 1000;
 const MAX_CONTEXT_BYTES = 45_000;
+const MAX_SQL_ROWS_SUMMARY = 40;
+const MAX_SQL_RESULT_BYTES = 28_000;
+const SQL_FORBIDDEN_RE =
+  /\b(DROP|DELETE|UPDATE|INSERT|ALTER|CREATE|REPLACE|TRUNCATE|ATTACH|DETACH|COPY|EXPORT|IMPORT|PRAGMA|LOAD|INSTALL|CALL|EXECUTE|SET|RESET|VACUUM|CHECKPOINT|USE|SECRET|READ_CSV|READ_CSV_AUTO|READ_JSON|READ_JSON_AUTO|READ_PARQUET|READ_TEXT|READ_BLOB|PARQUET_SCAN|CSV_SCAN|SQLITE_SCAN|GLOB|HTTP_GET)\b/i;
 
 // Lightweight per-isolate sliding-window rate limiter (zero KV cost on Free tier)
 const rateBuckets = new Map();
@@ -298,6 +304,168 @@ function formatRagEvidenceForPrompt(sources) {
   return JSON.stringify(compact);
 }
 
+function validateReadOnlySql(rawSql) {
+  if (!rawSql || typeof rawSql !== "string") {
+    return { ok: false, error: "Empty SQL query." };
+  }
+  let sql = rawSql
+    .replace(/^\s*```(?:sql)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+  // Remove single trailing semicolon
+  sql = sql.replace(/;\s*$/, "").trim();
+  if (!sql) return { ok: false, error: "Empty SQL query." };
+  if (sql.length > 4000) return { ok: false, error: "SQL query exceeds 4,000 characters." };
+  if (!/^(SELECT|WITH)\b/i.test(sql)) {
+    return { ok: false, error: "Only read-only SELECT / WITH queries are permitted." };
+  }
+  if (sql.includes(";")) {
+    return { ok: false, error: "Multiple SQL statements are not permitted." };
+  }
+  if (SQL_FORBIDDEN_RE.test(sql)) {
+    return { ok: false, error: "SQL contains a forbidden keyword or file/network function." };
+  }
+  if (!/\bLIMIT\s+\d+\b/i.test(sql)) {
+    sql = `${sql}\nLIMIT 100`;
+  }
+  return { ok: true, sql };
+}
+
+function parseSqlPlanJson(rawText) {
+  if (!rawText || typeof rawText !== "string") return null;
+  let cleaned = stripReasoningTags(rawText)
+    .replace(/^\s*```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  try {
+    const obj = JSON.parse(cleaned);
+    if (obj && typeof obj === "object") return obj;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function buildSqlPlannerSystemPrompt(contextObj, previousSql, previousError) {
+  const scope = (contextObj && contextObj.scope) || {};
+  const scopeDesc = JSON.stringify({
+    label: scope.label || "2013 - 2026 | All Servers",
+    server: scope.server || "all",
+    category: scope.category || "all",
+    year_start: scope.year_start || 2013,
+    year_end: scope.year_end || 2026,
+  });
+
+  const lines = [
+    "You are a DuckDB SQL planner for the BioRxiv & MedRxiv Preprint Analytics Dashboard (454,051 canonical preprints).",
+    "Decide whether the user's question needs an exact read-only DuckDB SQL query over the full dataset, OR can already be answered accurately from the high-level dashboard summary + semantic RAG.",
+    "",
+    "SET `needs_sql: true` when the user asks for:",
+    "- Exact counts, rankings, filtering, sorting, percentiles, or multi-condition combinations across all 454,051 preprints, 3,034 clinical trials, or 399 NIH iCite papers (e.g., specific journals/publishers, exact enrollments, specific institutions/countries, specific years + keywords + publication status, version thresholds, top-N tables).",
+    "SET `needs_sql: false` when the user asks for:",
+    "- High-level summary of the active dashboard slice, general trends already shown on charts, or conceptual explanations.",
+    "",
+    "AVAILABLE DUCKDB VIEWS (query ONLY these 3 views — NEVER call read_parquet/read_csv):",
+    "1. `preprints` (454,051 unique DOIs, 1 row per preprint):",
+    "   - doi VARCHAR, title VARCHAR, server VARCHAR ('biorxiv'|'medrxiv'), category VARCHAR (lowercase, e.g. 'neuroscience', 'infectious diseases (except hiv/aids)', 'epidemiology', 'bioinformatics'),",
+    "   - year SMALLINT, first_posted_date DATE, latest_posted_date DATE, num_versions SMALLINT, author_count SMALLINT, revision_span_days INTEGER,",
+    "   - is_published BOOLEAN, published_doi VARCHAR, publisher_name VARCHAR,",
+    "   - institution VARCHAR (ROR-normalized canonical name, e.g. 'Harvard University', 'Stanford University'), country VARCHAR (e.g. 'United States', 'United Kingdom', 'Germany', 'China'), institution_type VARCHAR,",
+    "   - ever_withdrawn BOOLEAN,",
+    "   - Topic flags (BOOLEAN): kw_covid_sarscov2, kw_single_cell, kw_deep_learning, kw_crispr, kw_alphafold, kw_llm_genai, kw_spatial_omics, kw_mrna_vaccine, kw_glp1.",
+    "2. `clinical_trials` (3,034 trial-linked preprints):",
+    "   - doi VARCHAR, trial_id VARCHAR (e.g. 'NCT04280705'), registry VARCHAR, title VARCHAR, server VARCHAR, category VARCHAR, year SMALLINT,",
+    "   - is_published BOOLEAN, published_doi VARCHAR, publisher_name VARCHAR, institution VARCHAR, country VARCHAR,",
+    "   - phase VARCHAR (e.g. 'PHASE3', 'PHASE2', 'PHASE1', 'PHASE2/PHASE3', 'NA'), overall_status VARCHAR (e.g. 'COMPLETED', 'RECRUITING'),",
+    "   - sponsor_class VARCHAR ('INDUSTRY'|'OTHER'|'NIH'|'FED'|'NETWORK'), sponsor_name VARCHAR, enrollment_count INTEGER, has_results BOOLEAN, conditions VARCHAR (comma-separated).",
+    "3. `downstream_clinical` (399 mature published papers linked to NIH iCite):",
+    "   - doi VARCHAR, published_doi VARCHAR, pmid VARCHAR, title VARCHAR, server VARCHAR, category VARCHAR, year SMALLINT, publisher_name VARCHAR, institution VARCHAR, country VARCHAR,",
+    "   - is_clinical BOOLEAN, apt DOUBLE, cited_by_clin_count INTEGER, citation_count INTEGER, relative_citation_ratio DOUBLE.",
+    "",
+    "IMPORTANT DOMAIN TIPS:",
+    "- Journal matching: `publisher_name` stores the publisher (e.g. 'Massachusetts Medical Society' for NEJM, 'Elsevier' for The Lancet, 'Springer Nature', 'BMJ', 'American Medical Association (AMA)'), while `published_doi` identifies specific journals:",
+    "  * NEJM: published_doi ILIKE '10.1056/%' OR publisher_name ILIKE '%Massachusetts Medical%' OR publisher_name ILIKE '%New England%'",
+    "  * Lancet: published_doi ILIKE '10.1016/s0140-6736%' OR published_doi ILIKE '10.1016/s2%' OR publisher_name ILIKE '%Lancet%'",
+    "  * JAMA: published_doi ILIKE '10.1001/%' OR publisher_name ILIKE '%American Medical Association%'",
+    "  * BMJ: published_doi ILIKE '10.1136/bmj%' OR publisher_name ILIKE '%BMJ%'",
+    "  * Nature family: published_doi ILIKE '10.1038/%'",
+    "  * Science family: published_doi ILIKE '10.1126/%'",
+    "- Phase matching: use `phase ILIKE '%PHASE3%'` (because combined phases like 'PHASE2/PHASE3' exist).",
+    "- Respect the user's ACTIVE DASHBOARD FILTER SLICE below unless the question explicitly specifies a different server/year/category:",
+    `  Active Slice: ${scopeDesc}`,
+    "- Always include `ORDER BY` + `LIMIT` (<= 50 rows for lists, <= 100 for aggregates) and keep column aliases short and clear.",
+    "- Output STRICT valid JSON ONLY (no markdown fences, no commentary): {\"needs_sql\": boolean, \"reason\": string, \"sql\": string|null}",
+  ];
+
+  if (previousSql && previousError) {
+    lines.push(
+      "",
+      "PREVIOUS SQL FAILED IN DUCKDB — FIX IT:",
+      `Previous SQL: ${previousSql}`,
+      `DuckDB Error: ${previousError}`
+    );
+  }
+  return lines.join("\n");
+}
+
+function buildSqlSummarySystemPrompt(contextJson, sql, columns, rows, totalRows) {
+  return [
+    "You are a concise biomedical data analyst embedded in the BioRxiv & MedRxiv Preprint Analytics Dashboard.",
+    "An exact read-only DuckDB SQL query just ran directly in the user's browser across all 454,051 canonical preprints / 3,034 clinical trials / 399 NIH iCite papers.",
+    "Rules:",
+    "1. Answer the user's question STRICTLY from the SQL Query Result below (and Active Dashboard Slice only for background context if needed).",
+    "2. Never invent rows, counts, DOIs, NCT IDs, or journals not present in the SQL result.",
+    "3. If the SQL returned 0 rows, state that transparently and briefly suggest broadening a filter (e.g., publisher/DOI prefix or phase).",
+    "4. Keep answers clear, crisp, and scannable (bullet points, comma-formatted integers, 1–2 decimal percentages). Briefly note peer-review right-censoring if comparing 2025–2026 publication rates.",
+    "",
+    `EXECUTED DUCKDB SQL:\n${sql}`,
+    `COLUMNS: ${JSON.stringify(columns)}`,
+    `TOTAL ROWS RETURNED: ${totalRows} (showing up to ${rows.length} rows below):`,
+    JSON.stringify(rows),
+    "",
+    "ACTIVE DASHBOARD CONTEXT (for scope reference):",
+    contextJson.slice(0, 4000),
+  ].join("\n");
+}
+
+async function runProviderCall(requestedProvider, question, systemInstruction, env, attempts, allowWorkersAi = true) {
+  if (requestedProvider === "gemini") {
+    if (!env || !env.GEMINI_API_KEY) {
+      return { error: "Provider 'gemini' is not configured (missing GEMINI_API_KEY).", status: 503 };
+    }
+    const r = await tryGemini(question, systemInstruction, env, attempts);
+    return r ? { result: r } : null;
+  }
+  if (requestedProvider === "groq") {
+    if (!env || !env.GROQ_API_KEY) {
+      return { error: "Provider 'groq' is not configured (missing GROQ_API_KEY).", status: 503 };
+    }
+    const r = await tryGroq(question, systemInstruction, env, attempts);
+    return r ? { result: r } : null;
+  }
+  if (requestedProvider === "workers_ai") {
+    if (!allowWorkersAi) {
+      return { error: "SQL planning is disabled on the lightweight Workers AI 8B model.", status: 400 };
+    }
+    if (!env || !env.AI || typeof env.AI.run !== "function") {
+      return { error: "Provider 'workers_ai' is not configured (missing Workers AI binding `AI`).", status: 503 };
+    }
+    const r = await tryWorkersAI(question, systemInstruction, env, attempts);
+    return r ? { result: r } : null;
+  }
+  // Auto cascade
+  const r =
+    (await tryGemini(question, systemInstruction, env, attempts)) ||
+    (await tryGroq(question, systemInstruction, env, attempts)) ||
+    (allowWorkersAi ? await tryWorkersAI(question, systemInstruction, env, attempts) : null);
+  return r ? { result: r } : null;
+}
+
 function buildSystemInstruction(contextJson, ragSources) {
   const hasRag = Array.isArray(ragSources) && ragSources.length > 0;
   const lines = [
@@ -488,14 +656,24 @@ export default {
             embedding_model: (env && env.RAG_EMBEDDING_MODEL) || DEFAULT_RAG_EMBEDDING_MODEL,
             top_k: Number((env && env.RAG_TOP_K) || DEFAULT_RAG_TOP_K),
           },
+          sql_wasm: {
+            configured: Boolean((env && env.GEMINI_API_KEY) || (env && env.GROQ_API_KEY)),
+            eligible_providers: ["gemini", "groq"],
+            views: ["preprints", "clinical_trials", "downstream_clinical"],
+          },
         },
         200,
         corsOrigin || "*"
       );
     }
 
-    if (request.method !== "POST" || url.pathname !== "/ask") {
-      return jsonResponse({ error: "Not found. Use GET /health or POST /ask." }, 404, corsOrigin);
+    const ALLOWED_POST_PATHS = ["/ask", "/sql-plan", "/sql-summarize"];
+    if (request.method !== "POST" || !ALLOWED_POST_PATHS.includes(url.pathname)) {
+      return jsonResponse(
+        { error: "Not found. Use GET /health or POST /ask, /sql-plan, /sql-summarize." },
+        404,
+        corsOrigin
+      );
     }
 
     const reqOrigin = request.headers.get("Origin");
@@ -574,8 +752,142 @@ export default {
       );
     }
     const requestedProvider = rawProvider === "workers-ai" ? "workers_ai" : rawProvider;
-    const useRag = body.use_rag !== false;
 
+    // ------------------------------------------------------------------
+    // Route 1: POST /sql-plan (Gemini & Groq ONLY — disabled on 8B Workers AI)
+    // ------------------------------------------------------------------
+    if (url.pathname === "/sql-plan") {
+      const hasSqlCapableProvider = Boolean((env && env.GEMINI_API_KEY) || (env && env.GROQ_API_KEY));
+      if (requestedProvider === "workers_ai" || !hasSqlCapableProvider) {
+        return jsonResponse(
+          {
+            needs_sql: false,
+            sql: null,
+            reason: "SQL generation is enabled for Gemini and Groq; using Vectorize RAG for Workers AI.",
+            remaining_requests: rl.remaining,
+          },
+          200,
+          corsOrigin
+        );
+      }
+
+      const prevSql = typeof body.previous_sql === "string" ? body.previous_sql.slice(0, 2000) : "";
+      const prevErr = typeof body.previous_error === "string" ? body.previous_error.slice(0, 600) : "";
+      const planSystemPrompt = buildSqlPlannerSystemPrompt(contextObj, prevSql, prevErr);
+      const attempts = [];
+      const call = await runProviderCall(requestedProvider, question, planSystemPrompt, env, attempts, false);
+      if (call && call.error) {
+        return jsonResponse({ error: call.error }, call.status || 503, corsOrigin);
+      }
+      if (!call || !call.result) {
+        return jsonResponse(
+          {
+            needs_sql: false,
+            sql: null,
+            reason: `SQL planner unavailable (${attempts.join(" | ")}); falling back to RAG.`,
+            remaining_requests: rl.remaining,
+          },
+          200,
+          corsOrigin
+        );
+      }
+
+      const parsed = parseSqlPlanJson(call.result.answer);
+      if (!parsed || !parsed.needs_sql || !parsed.sql) {
+        return jsonResponse(
+          {
+            needs_sql: false,
+            sql: null,
+            reason: (parsed && parsed.reason) || "Answerable directly from dashboard summary + Vectorize RAG.",
+            provider: call.result.provider,
+            model: call.result.model,
+            remaining_requests: rl.remaining,
+          },
+          200,
+          corsOrigin
+        );
+      }
+
+      const checked = validateReadOnlySql(parsed.sql);
+      if (!checked.ok) {
+        return jsonResponse(
+          {
+            needs_sql: false,
+            sql: null,
+            reason: `Generated SQL rejected by safety validator: ${checked.error}`,
+            provider: call.result.provider,
+            model: call.result.model,
+            remaining_requests: rl.remaining,
+          },
+          200,
+          corsOrigin
+        );
+      }
+
+      return jsonResponse(
+        {
+          needs_sql: true,
+          sql: checked.sql,
+          reason: parsed.reason || "Running read-only DuckDB SQL over all 454,051 preprints.",
+          provider: call.result.provider,
+          model: call.result.model,
+          remaining_requests: rl.remaining,
+        },
+        200,
+        corsOrigin
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // Route 2: POST /sql-summarize (Synthesizes browser DuckDB-Wasm rows)
+    // ------------------------------------------------------------------
+    if (url.pathname === "/sql-summarize") {
+      const executedSql = typeof body.sql === "string" ? body.sql.trim() : "";
+      const columns = Array.isArray(body.columns) ? body.columns.slice(0, 40) : [];
+      const rawRows = Array.isArray(body.rows) ? body.rows.slice(0, MAX_SQL_ROWS_SUMMARY) : [];
+      const totalRows = typeof body.total_rows === "number" ? body.total_rows : rawRows.length;
+
+      const checked = validateReadOnlySql(executedSql);
+      if (!checked.ok) {
+        return jsonResponse({ error: `Invalid SQL provided for summary: ${checked.error}` }, 400, corsOrigin);
+      }
+      if (JSON.stringify(rawRows).length > MAX_SQL_RESULT_BYTES) {
+        return jsonResponse({ error: "SQL result payload too large to summarize." }, 413, corsOrigin);
+      }
+
+      const summaryPrompt = buildSqlSummarySystemPrompt(contextJson, checked.sql, columns, rawRows, totalRows);
+      const attempts = [];
+      const call = await runProviderCall(requestedProvider, question, summaryPrompt, env, attempts, true);
+      if (call && call.error) {
+        return jsonResponse({ error: call.error }, call.status || 503, corsOrigin);
+      }
+      if (call && call.result) {
+        return jsonResponse(
+          {
+            answer: call.result.answer,
+            provider: call.result.provider,
+            model: call.result.model,
+            requested_provider: requestedProvider,
+            fallback_used: requestedProvider === "auto" && call.result.provider !== "gemini",
+            sql_used: true,
+            scope: contextObj.scope || null,
+            remaining_requests: rl.remaining,
+          },
+          200,
+          corsOrigin
+        );
+      }
+      return jsonResponse(
+        { error: `Could not summarize SQL results. Attempts: ${attempts.join(" | ")}` },
+        503,
+        corsOrigin
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // Route 3: POST /ask (Tier 0 Dashboard JSON + Tier 1 Vectorize RAG)
+    // ------------------------------------------------------------------
+    const useRag = body.use_rag !== false;
     const ragResult = useRag
       ? await retrieveRagSources(question, contextObj, env)
       : { sources: [], ragNote: "disabled_by_client" };
@@ -583,39 +895,19 @@ export default {
 
     const systemInstruction = buildSystemInstruction(contextJson, ragSources);
     const attempts = [];
-
-    let result = null;
-    if (requestedProvider === "gemini") {
-      if (!env || !env.GEMINI_API_KEY) {
-        return jsonResponse({ error: "Provider 'gemini' is not configured (missing GEMINI_API_KEY)." }, 503, corsOrigin);
-      }
-      result = await tryGemini(question, systemInstruction, env, attempts);
-    } else if (requestedProvider === "groq") {
-      if (!env || !env.GROQ_API_KEY) {
-        return jsonResponse({ error: "Provider 'groq' is not configured (missing GROQ_API_KEY)." }, 503, corsOrigin);
-      }
-      result = await tryGroq(question, systemInstruction, env, attempts);
-    } else if (requestedProvider === "workers_ai") {
-      if (!env || !env.AI || typeof env.AI.run !== "function") {
-        return jsonResponse({ error: "Provider 'workers_ai' is not configured (missing Workers AI binding `AI`)." }, 503, corsOrigin);
-      }
-      result = await tryWorkersAI(question, systemInstruction, env, attempts);
-    } else {
-      // Auto cascade: Gemini -> Groq -> Cloudflare Workers AI
-      result =
-        (await tryGemini(question, systemInstruction, env, attempts)) ||
-        (await tryGroq(question, systemInstruction, env, attempts)) ||
-        (await tryWorkersAI(question, systemInstruction, env, attempts));
+    const call = await runProviderCall(requestedProvider, question, systemInstruction, env, attempts, true);
+    if (call && call.error) {
+      return jsonResponse({ error: call.error }, call.status || 503, corsOrigin);
     }
 
-    if (result) {
+    if (call && call.result) {
       return jsonResponse(
         {
-          answer: result.answer,
-          provider: result.provider,
-          model: result.model,
+          answer: call.result.answer,
+          provider: call.result.provider,
+          model: call.result.model,
           requested_provider: requestedProvider,
-          fallback_used: requestedProvider === "auto" && result.provider !== "gemini",
+          fallback_used: requestedProvider === "auto" && call.result.provider !== "gemini",
           rag_used: ragSources.length > 0,
           sources: ragSources,
           scope: contextObj.scope || null,

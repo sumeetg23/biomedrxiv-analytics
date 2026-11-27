@@ -19,6 +19,7 @@ from biomedrxiv.rag_corpus import (
 
 
 def _create_synthetic_processed_dir(tmp_path: Path) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(":memory:")
     con.execute(
         """
@@ -29,8 +30,10 @@ def _create_synthetic_processed_dir(tmp_path: Path) -> Path:
                 'medrxiv' AS server_clean,
                 'endocrinology' AS category_clean,
                 TIMESTAMP '2021-06-15' AS first_posted_date,
+                TIMESTAMP '2021-08-20' AS latest_posted_date,
                 3::INTEGER AS num_versions,
                 8::INTEGER AS author_count,
+                66::BIGINT AS revision_span_days,
                 TRUE AS snapshot_is_published,
                 '10.1056/NEJMoa12345' AS snapshot_published_doi,
                 'New England Journal of Medicine' AS publisher_name,
@@ -53,8 +56,10 @@ def _create_synthetic_processed_dir(tmp_path: Path) -> Path:
                 'biorxiv',
                 'bioinformatics',
                 TIMESTAMP '2023-03-10',
+                TIMESTAMP '2023-04-01',
                 2::INTEGER,
                 5::INTEGER,
+                22::BIGINT,
                 TRUE,
                 '10.1038/s41586-023-00002',
                 'Nature',
@@ -69,8 +74,10 @@ def _create_synthetic_processed_dir(tmp_path: Path) -> Path:
                 'biorxiv',
                 'neuroscience',
                 TIMESTAMP '2024-05-05',
+                TIMESTAMP '2024-05-05',
                 1::INTEGER,
                 12::INTEGER,
+                0::BIGINT,
                 FALSE,
                 NULL,
                 NULL,

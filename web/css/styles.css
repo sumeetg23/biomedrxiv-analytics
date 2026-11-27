@@ -690,6 +690,114 @@ a:hover {
   color: var(--accent);
 }
 
+.chat-sql-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.42rem;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.chat-sql-toggle input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.chat-sql-toggle.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-status-line {
+  padding: 0.36rem 1.15rem;
+  font-size: 0.74rem;
+  color: var(--medrxiv);
+  background: var(--surface-alt);
+  border-top: 1px solid var(--border);
+  font-style: italic;
+}
+
+.chat-sql-table-wrap {
+  margin-top: 0.55rem;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface-alt);
+}
+
+.chat-sql-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.73rem;
+}
+
+.chat-sql-table th,
+.chat-sql-table td {
+  padding: 0.3rem 0.48rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  max-width: 210px;
+  overflow-wrap: anywhere;
+}
+
+.chat-sql-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  font-weight: 600;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.chat-sql-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chat-sql-table td a {
+  color: var(--medrxiv);
+  text-decoration: underline;
+}
+
+.chat-sql-details {
+  margin-top: 0.45rem;
+  font-size: 0.73rem;
+}
+
+.chat-sql-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.chat-sql-code {
+  margin: 0.35rem 0 0;
+  padding: 0.5rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 0.71rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .chat-suggestions {
   display: flex;
   flex-wrap: wrap;

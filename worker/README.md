@@ -46,6 +46,20 @@ export CLOUDFLARE_API_TOKEN="<cloudflare-api-token>"
 
 ---
 
+## Step 3: Browser DuckDB-Wasm Full 454K-Row SQL (Zero Credit Card)
+
+Compact, sorted, ZSTD-compressed Parquet tables (~21.7 MiB total) live in `web/data/parquet/` (served directly from same-origin GitHub Pages with HTTP Range requests — or overridable to a public Hugging Face Dataset repo via `parquetBaseUrl` in `web/config.js`):
+
+```bash
+# Regenerate web/data/parquet/ after a dataset update:
+.venv/bin/python scripts/export_web_parquet.py
+```
+
+* **`POST /sql-plan`** (Gemini & Groq only; disabled on 8B Workers AI): classifies whether a question needs exact 454K-row SQL and returns a strictly validated read-only `SELECT`/`WITH` query over views `preprints`, `clinical_trials`, and `downstream_clinical`.
+* **`POST /sql-summarize`**: summarizes the browser DuckDB-Wasm result rows alongside the interactive SQL result table.
+
+---
+
 ## Option B: Deploy via Wrangler CLI (If Node.js Is Installed)
 
 ```bash

@@ -139,16 +139,166 @@
     );
   }
 
-  function appendMessage(role, meta, text, sources) {
+  function setStatusLine(msg) {
+    const el = document.getElementById("chat-status-line");
+    if (!el) return;
+    if (msg) {
+      el.textContent = msg;
+      el.style.display = "block";
+    } else {
+      el.textContent = "";
+      el.style.display = "none";
+    }
+  }
+
+  function isSqlEnabledForProvider(provider) {
+    const toggle = document.getElementById("chat-sql-toggle");
+    if (!toggle || !toggle.checked) return false;
+    if (provider === "workers_ai") return false;
+    return Boolean(window.BioMedRxivDuckDB);
+  }
+
+  function syncSqlToggleState() {
+    const provider = getSelectedProvider();
+    const toggle = document.getElementById("chat-sql-toggle");
+    const label = document.getElementById("chat-sql-toggle-label");
+    if (!toggle || !label) return;
+    const blocked = provider === "workers_ai";
+    toggle.disabled = blocked;
+    label.classList.toggle("disabled", blocked);
+    label.title = blocked
+      ? "DuckDB-Wasm SQL is disabled on Workers AI 8B (uses Vectorize RAG + Dashboard JSON)"
+      : "Auto-run browser DuckDB-Wasm SQL across all 454,051 preprints when needed (Gemini & Groq)";
+  }
+
+  function formatSqlCell(col, val) {
+    if (val === null || val === undefined || val === "") return "—";
+    const s = String(val);
+    if (/^(doi|published_doi)$/i.test(col) && /^10\.\d{4,9}\//.test(s)) {
+      return `<a href="https://doi.org/${esc(s)}" target="_blank" rel="noopener noreferrer">${esc(s)}</a>`;
+    }
+    if (/^trial_id$/i.test(col) && /^NCT\d+$/i.test(s)) {
+      return `<a href="https://clinicaltrials.gov/study/${esc(s)}" target="_blank" rel="noopener noreferrer">${esc(s)}</a>`;
+    }
+    if (typeof val === "number") {
+      return Number.isInteger(val) ? esc(val.toLocaleString()) : esc(val.toFixed(2));
+    }
+    return esc(s.length > 140 ? `${s.slice(0, 139)}…` : s);
+  }
+
+  function renderSqlResultHtml(sqlResult) {
+    if (!sqlResult || !sqlResult.sql) return "";
+    const { sql, columns, rows, totalRows, elapsedMs } = sqlResult;
+    let tableHtml = "";
+    if (Array.isArray(columns) && columns.length && Array.isArray(rows) && rows.length) {
+      const displayRows = rows.slice(0, 30);
+      const thead = `<tr>${columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>`;
+      const tbody = displayRows
+        .map(
+          (r) =>
+            `<tr>${columns
+              .map((c) => {
+                const v = r[c];
+                const cls = typeof v === "number" ? ' class="num"' : "";
+                return `<td${cls}>${formatSqlCell(c, v)}</td>`;
+              })
+              .join("")}</tr>`
+        )
+        .join("");
+      tableHtml = `<div class="chat-sql-table-wrap"><table class="chat-sql-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>`;
+    }
+    const rowLabel =
+      totalRows > 30
+        ? `${totalRows.toLocaleString()} rows (showing 30)`
+        : `${totalRows.toLocaleString()} row${totalRows === 1 ? "" : "s"}`;
+    return (
+      tableHtml +
+      `<details class="chat-sql-details">` +
+      `<summary>View DuckDB-Wasm SQL (${esc(rowLabel)} &middot; ${esc(elapsedMs)}ms across 454K rows)</summary>` +
+      `<pre class="chat-sql-code">${esc(sql)}</pre>` +
+      `</details>`
+    );
+  }
+
+  function appendMessage(role, meta, text, sources, sqlResult) {
     const log = document.getElementById("chat-drawer-log");
     const div = document.createElement("div");
     div.className = `chat-msg ${role === "user" ? "chat-msg-user" : "chat-msg-bot"}`;
     div.innerHTML =
       `<div class="chat-msg-meta">${esc(meta)}</div>` +
       `<div class="chat-msg-body">${role === "user" ? esc(text) : renderMarkdownLite(text)}</div>` +
+      (role === "bot" ? renderSqlResultHtml(sqlResult) : "") +
       (role === "bot" ? renderSourcesHtml(sources) : "");
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
+  }
+
+  async function tryBrowserSqlWorkflow(workerUrl, question, ctx, provider) {
+    setStatusLine("Checking if exact 454K-row DuckDB SQL is needed…");
+    const planResp = await fetch(`${workerUrl}/sql-plan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, context: ctx, provider }),
+    });
+    if (!planResp.ok) return null; // Older Worker or transient error -> fall back cleanly to /ask
+    const plan = await planResp.json();
+    if (!plan || !plan.needs_sql || !plan.sql) return null;
+
+    let sqlResult = null;
+    try {
+      sqlResult = await window.BioMedRxivDuckDB.runQuery(plan.sql, setStatusLine);
+    } catch (firstErr) {
+      // One automatic self-repair attempt with DuckDB error feedback
+      setStatusLine("Refining DuckDB SQL query…");
+      const retryResp = await fetch(`${workerUrl}/sql-plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          context: ctx,
+          provider,
+          previous_sql: plan.sql,
+          previous_error: firstErr && firstErr.message ? firstErr.message : String(firstErr),
+        }),
+      });
+      if (retryResp.ok) {
+        const retryPlan = await retryResp.json();
+        if (retryPlan && retryPlan.needs_sql && retryPlan.sql) {
+          sqlResult = await window.BioMedRxivDuckDB.runQuery(retryPlan.sql, setStatusLine);
+        }
+      }
+      if (!sqlResult) throw firstErr;
+    }
+
+    setStatusLine("Summarizing DuckDB SQL results…");
+    const sumResp = await fetch(`${workerUrl}/sql-summarize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question,
+        sql: sqlResult.sql,
+        columns: sqlResult.columns,
+        rows: sqlResult.rows.slice(0, 40),
+        total_rows: sqlResult.totalRows,
+        context: ctx,
+        provider,
+      }),
+    });
+    const sumData = await sumResp.json();
+    if (!sumResp.ok) {
+      return {
+        answer: `Executed DuckDB-Wasm query directly in your browser (${sqlResult.totalRows.toLocaleString()} rows in ${sqlResult.elapsedMs}ms), though AI summary was unavailable: ${sumData.error || sumResp.status}.`,
+        provider: plan.provider || provider,
+        model: plan.model || "duckdb-wasm",
+        sqlResult,
+      };
+    }
+    return {
+      answer: sumData.answer,
+      provider: sumData.provider,
+      model: sumData.model,
+      sqlResult,
+    };
   }
 
   async function sendQuestion(question) {
@@ -171,6 +321,28 @@
 
     const provider = getSelectedProvider();
     try {
+      // Tier 2: Browser DuckDB-Wasm SQL over all 454,051 rows (Gemini & Groq only)
+      if (isSqlEnabledForProvider(provider)) {
+        try {
+          const sqlOut = await tryBrowserSqlWorkflow(workerUrl, question, ctx, provider);
+          if (sqlOut) {
+            const pTag = sqlOut.provider ? `${sqlOut.provider} • ` : "";
+            appendMessage(
+              "bot",
+              `AI Analyst (${pTag}${sqlOut.model || "gemini"} • SQL 454K • ${sqlOut.sqlResult.elapsedMs}ms)`,
+              sqlOut.answer,
+              null,
+              sqlOut.sqlResult
+            );
+            return;
+          }
+        } catch (sqlErr) {
+          console.warn("DuckDB-Wasm SQL path fell back to Tier 0/1 RAG:", sqlErr);
+        }
+      }
+
+      // Tier 0 (Dashboard JSON) + Tier 1 (Vectorize RAG)
+      setStatusLine("Searching Vectorize RAG & generating answer…");
       const resp = await fetch(`${workerUrl}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -196,6 +368,7 @@
         `Could not reach Worker at ${workerUrl}/ask: ${err.message}`
       );
     } finally {
+      setStatusLine("");
       btn.disabled = false;
       btn.textContent = "Send";
       input.focus();
@@ -256,6 +429,12 @@
         updateSetupVisibility();
         appendMessage("bot", "Connected", `Using Cloudflare Worker proxy at ${val} for this browser session.`);
       });
+    }
+
+    const providerSelect = document.getElementById("chat-provider-select");
+    if (providerSelect) {
+      providerSelect.addEventListener("change", syncSqlToggleState);
+      syncSqlToggleState();
     }
 
     // Keep context pill fresh whenever dashboard filters change

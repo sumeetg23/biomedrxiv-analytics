@@ -1,0 +1,22 @@
+{
+  "files": {
+    "preprints": "preprints.parquet",
+    "clinical_trials": "clinical_trials.parquet",
+    "downstream_clinical": "downstream_clinical.parquet"
+  },
+  "stats": {
+    "preprints.parquet": {
+      "rows": 454051,
+      "mib": 21.38
+    },
+    "clinical_trials.parquet": {
+      "rows": 3034,
+      "mib": 0.252
+    },
+    "downstream_clinical.parquet": {
+      "rows": 399,
+      "mib": 0.033
+    }
+  },
+  "total_mib": 21.67
+}

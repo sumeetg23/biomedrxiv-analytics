@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BioRxiv &amp; MedRxiv Preprint Analytics Dashboard</title>
-  <link rel="stylesheet" href="./css/styles.css?v=20261126f" />
+  <link rel="stylesheet" href="./css/styles.css?v=20261126g" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8" defer></script>
-  <script src="./config.js?v=20261126b" defer></script>
+  <script src="./config.js?v=20261126g" defer></script>
   <script src="./js/dashboard.js?v=20261126" defer></script>
-  <script src="./js/chat.js?v=20261126f" defer></script>
+  <script src="./js/duckdb_client.js?v=20261126g" defer></script>
+  <script src="./js/chat.js?v=20261126g" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -411,17 +412,23 @@
         <option value="groq">Groq (gpt-oss-120b)</option>
         <option value="workers_ai">Workers AI (Llama 3.1 8B)</option>
       </select>
+      <label class="chat-sql-toggle" id="chat-sql-toggle-label" title="Auto-run browser DuckDB-Wasm SQL across all 454,051 preprints when needed (Gemini & Groq)">
+        <input type="checkbox" id="chat-sql-toggle" checked />
+        <span>SQL 454K</span>
+      </label>
       <span id="chat-rag-badge" class="chat-rag-badge" title="Cloudflare Vectorize semantic search over clinical trials & top preprints">RAG: checking</span>
     </div>
 
     <div id="chat-drawer-suggestions" class="chat-suggestions">
       <button type="button" class="chat-chip">Summarize the key trends in this active filter slice</button>
-      <button type="button" class="chat-chip">How strongly do preprint revisions correlate with publication?</button>
-      <button type="button" class="chat-chip">Which institutions and countries lead this slice?</button>
+      <button type="button" class="chat-chip">Which Phase 3 clinical trials on medRxiv had the highest enrollment and got published in NEJM or Lancet?</button>
+      <button type="button" class="chat-chip">Top 10 institutions by GLP-1 or AlphaFold preprints</button>
       <button type="button" class="chat-chip">What stands out in the clinical trials data?</button>
     </div>
 
     <div id="chat-drawer-log" class="chat-drawer-log"></div>
+
+    <div id="chat-status-line" class="chat-status-line" style="display:none;"></div>
 
     <form id="chat-drawer-form" class="chat-drawer-form">
       <input id="chat-drawer-input" type="text" placeholder="Ask about the currently filtered data..." required />
