@@ -1,36 +1,63 @@
 /**
- * Cloudflare Worker — Gemini Interactions API Proxy for BioRxiv & MedRxiv Dashboard
+ * Cloudflare Worker — Multi-Provider LLM Proxy for BioRxiv & MedRxiv Dashboard
+ *
+ * Step 1 of the Unified Architecture: Multi-Provider LLM Fallback Chain
+ *   1. Primary:    Google Gemini Interactions API (gemini-4-hydrogen -> gemini-4-argon -> gemini-3.5-flash-lite)
+ *   2. Fallback 1: Groq OpenAI-compatible API (openai/gpt-oss-120b -> qwen/qwen3.8-27b)
+ *   3. Fallback 2: Cloudflare Workers AI binding (`env.AI`, 10,000 Neurons/day free)
  *
  * Zero external dependencies: deploy via `wrangler deploy` OR paste directly into
  * the Cloudflare Workers Web Dashboard editor.
  *
- * Required Secret (set in Cloudflare Dashboard -> Settings -> Variables & Secrets):
- *   - GEMINI_API_KEY
+ * Secrets (Cloudflare Dashboard -> Settings -> Runtime variables and secrets):
+ *   - GEMINI_API_KEY   (Primary — Google AI Studio)
+ *   - GROQ_API_KEY     (Optional Fallback 1 — https://console.groq.com/keys)
  *
- * Optional Environment Variables (configured in wrangler.toml):
+ * Bindings (Cloudflare Dashboard -> Settings -> Bindings -> Add binding -> Workers AI):
+ *   - AI               (Optional Fallback 2 — zero API key required)
+ *
+ * Optional Text Variables:
  *   - GEMINI_MODEL           (default: "gemini-4-hydrogen")
+ *   - GEMINI_FALLBACK_MODELS (default: "gemini-4-argon,gemini-3.5-flash-lite")
+ *   - GROQ_MODELS            (default: "openai/gpt-oss-120b,qwen/qwen3.8-27b")
+ *   - WORKERS_AI_MODELS      (default: "@cf/meta/llama-3.1-8b-instruct-fast,@cf/meta/llama-3.1-8b-instruct-fp8")
  *   - ALLOWED_ORIGINS        (default: "https://sumeetg23.github.io,http://127.0.0.1:8080,http://localhost:8080")
  *   - RATE_LIMIT_MAX         (default: "20" requests per window per IP)
  *   - RATE_LIMIT_WINDOW_SEC  (default: "600" seconds = 10 minutes)
  */
 
 const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1/interactions";
-const DEFAULT_MODEL = "gemini-4-hydrogen";
-const DEFAULT_FALLBACK_MODELS = ["gemini-4-argon", "gemini-3.5-flash-lite"];
+const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+const DEFAULT_GEMINI_MODEL = "gemini-4-hydrogen";
+const DEFAULT_GEMINI_FALLBACKS = ["gemini-4-argon", "gemini-3.5-flash-lite"];
+const DEFAULT_GROQ_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"];
+const DEFAULT_WORKERS_AI_MODELS = [
+  "@cf/meta/llama-3.1-8b-instruct-fast",
+  "@cf/meta/llama-3.1-8b-instruct-fp8",
+];
+
 const MAX_QUESTION_CHARS = 1000;
 const MAX_CONTEXT_BYTES = 45_000;
 
 // Lightweight per-isolate sliding-window rate limiter (zero KV cost on Free tier)
 const rateBuckets = new Map();
 
-function parseAllowedOrigins(env) {
-  const raw =
-    (env && env.ALLOWED_ORIGINS) ||
-    "https://sumeetg23.github.io,http://127.0.0.1:8080,http://localhost:8080";
-  return raw
+function parseCsvList(raw, fallback) {
+  if (!raw || typeof raw !== "string") return fallback;
+  const parsed = raw
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+  return parsed.length ? parsed : fallback;
+}
+
+function parseAllowedOrigins(env) {
+  return parseCsvList(env && env.ALLOWED_ORIGINS, [
+    "https://sumeetg23.github.io",
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+  ]);
 }
 
 function resolveCorsOrigin(request, env) {
@@ -80,7 +107,6 @@ function checkRateLimit(ip, env) {
   existing.push(now);
   rateBuckets.set(ip, existing);
 
-  // Prevent unbounded Map growth in long-lived isolates
   if (rateBuckets.size > 5000) {
     for (const [key, timestamps] of rateBuckets.entries()) {
       const fresh = timestamps.filter((ts) => ts > cutoff);
@@ -91,13 +117,16 @@ function checkRateLimit(ip, env) {
   return { allowed: true, remaining: limit - existing.length, retryAfterSec: 0 };
 }
 
-function extractOutputText(interaction) {
+function stripReasoningTags(text) {
+  if (!text || typeof text !== "string") return "";
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
+function extractGeminiOutputText(interaction) {
   if (!interaction || typeof interaction !== "object") return "";
   if (typeof interaction.output_text === "string" && interaction.output_text.trim()) {
     return interaction.output_text.trim();
   }
-
-  // Modern Interactions API v1 schema: steps[] -> model_output -> content[] -> text
   if (Array.isArray(interaction.steps)) {
     const chunks = [];
     for (const step of interaction.steps) {
@@ -111,8 +140,6 @@ function extractOutputText(interaction) {
     }
     if (chunks.length) return chunks.join("\n").trim();
   }
-
-  // Fallback for outputs[] shape if returned
   if (Array.isArray(interaction.outputs)) {
     const chunks = [];
     for (const out of interaction.outputs) {
@@ -122,7 +149,6 @@ function extractOutputText(interaction) {
     }
     if (chunks.length) return chunks.join("\n").trim();
   }
-
   return "";
 }
 
@@ -141,12 +167,137 @@ function buildSystemInstruction(contextJson) {
   ].join("\n");
 }
 
+async function tryGemini(question, systemInstruction, env, attempts) {
+  if (!env || !env.GEMINI_API_KEY) return null;
+
+  const primary = env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  const fallbacks = parseCsvList(env.GEMINI_FALLBACK_MODELS, DEFAULT_GEMINI_FALLBACKS);
+  const models = [primary, ...fallbacks.filter((m) => m !== primary)];
+
+  for (const model of models) {
+    try {
+      const resp = await fetch(GEMINI_INTERACTIONS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": env.GEMINI_API_KEY,
+        },
+        body: JSON.stringify({
+          model,
+          input: question,
+          system_instruction: systemInstruction,
+          store: false,
+        }),
+      });
+
+      const data = await resp.json();
+      if (resp.ok) {
+        const answer = stripReasoningTags(extractGeminiOutputText(data));
+        if (answer) return { provider: "gemini", model, answer };
+        attempts.push(`gemini/${model}: empty response`);
+        continue;
+      }
+
+      const msg = (data && data.error && data.error.message) || `HTTP ${resp.status}`;
+      attempts.push(`gemini/${model}: ${msg}`);
+      // Stop trying other Gemini models only on auth/bad-request errors; continue on 429/5xx
+      if (resp.status === 400 || resp.status === 401 || resp.status === 403) {
+        return null;
+      }
+    } catch (err) {
+      attempts.push(`gemini/${model}: ${err && err.message ? err.message : String(err)}`);
+    }
+  }
+  return null;
+}
+
+async function tryGroq(question, systemInstruction, env, attempts) {
+  if (!env || !env.GROQ_API_KEY) return null;
+
+  const models = parseCsvList(env.GROQ_MODELS, DEFAULT_GROQ_MODELS);
+  for (const model of models) {
+    try {
+      const resp = await fetch(GROQ_CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          max_tokens: 900,
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: question },
+          ],
+        }),
+      });
+
+      const data = await resp.json();
+      if (resp.ok) {
+        const raw =
+          data &&
+          data.choices &&
+          data.choices[0] &&
+          data.choices[0].message &&
+          data.choices[0].message.content;
+        const answer = stripReasoningTags(raw);
+        if (answer) return { provider: "groq", model, answer };
+        attempts.push(`groq/${model}: empty response`);
+        continue;
+      }
+
+      const msg = (data && data.error && data.error.message) || `HTTP ${resp.status}`;
+      attempts.push(`groq/${model}: ${msg}`);
+      if (resp.status === 401 || resp.status === 403) {
+        return null;
+      }
+    } catch (err) {
+      attempts.push(`groq/${model}: ${err && err.message ? err.message : String(err)}`);
+    }
+  }
+  return null;
+}
+
+async function tryWorkersAI(question, systemInstruction, env, attempts) {
+  if (!env || !env.AI || typeof env.AI.run !== "function") return null;
+
+  const models = parseCsvList(env.WORKERS_AI_MODELS, DEFAULT_WORKERS_AI_MODELS);
+  for (const model of models) {
+    try {
+      const result = await env.AI.run(model, {
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: question },
+        ],
+        max_tokens: 800,
+        temperature: 0.2,
+      });
+
+      const raw =
+        (typeof result === "string" ? result : null) ||
+        (result && typeof result.response === "string" ? result.response : null) ||
+        (result &&
+          result.choices &&
+          result.choices[0] &&
+          result.choices[0].message &&
+          result.choices[0].message.content);
+      const answer = stripReasoningTags(raw);
+      if (answer) return { provider: "workers-ai", model, answer };
+      attempts.push(`workers-ai/${model}: empty response`);
+    } catch (err) {
+      attempts.push(`workers-ai/${model}: ${err && err.message ? err.message : String(err)}`);
+    }
+  }
+  return null;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const corsOrigin = resolveCorsOrigin(request, env);
 
-    // Handle CORS preflight
     if (request.method === "OPTIONS") {
       if (!corsOrigin) {
         return new Response("Origin not allowed", { status: 403 });
@@ -154,14 +305,25 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(corsOrigin) });
     }
 
-    // Health check
     if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
       return jsonResponse(
         {
           status: "ok",
           service: "biomedrxiv-gemini-proxy",
-          model: (env && env.GEMINI_MODEL) || DEFAULT_MODEL,
-          api_key_configured: Boolean(env && env.GEMINI_API_KEY),
+          providers: {
+            gemini: {
+              configured: Boolean(env && env.GEMINI_API_KEY),
+              primary_model: (env && env.GEMINI_MODEL) || DEFAULT_GEMINI_MODEL,
+            },
+            groq: {
+              configured: Boolean(env && env.GROQ_API_KEY),
+              models: parseCsvList(env && env.GROQ_MODELS, DEFAULT_GROQ_MODELS),
+            },
+            workers_ai: {
+              configured: Boolean(env && env.AI && typeof env.AI.run === "function"),
+              models: parseCsvList(env && env.WORKERS_AI_MODELS, DEFAULT_WORKERS_AI_MODELS),
+            },
+          },
         },
         200,
         corsOrigin || "*"
@@ -172,7 +334,6 @@ export default {
       return jsonResponse({ error: "Not found. Use GET /health or POST /ask." }, 404, corsOrigin);
     }
 
-    // Enforce CORS origin allowlist for browser requests
     const reqOrigin = request.headers.get("Origin");
     if (reqOrigin && !corsOrigin) {
       return jsonResponse(
@@ -182,15 +343,22 @@ export default {
       );
     }
 
-    if (!env || !env.GEMINI_API_KEY) {
+    const hasAnyProvider = Boolean(
+      (env && env.GEMINI_API_KEY) ||
+        (env && env.GROQ_API_KEY) ||
+        (env && env.AI && typeof env.AI.run === "function")
+    );
+    if (!hasAnyProvider) {
       return jsonResponse(
-        { error: "Server misconfigured: GEMINI_API_KEY secret is not set on this Worker." },
+        {
+          error:
+            "Server misconfigured: set at least one provider (GEMINI_API_KEY, GROQ_API_KEY, or Workers AI binding `AI`).",
+        },
         503,
         corsOrigin
       );
     }
 
-    // Per-IP rate limit
     const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
     const rl = checkRateLimit(clientIp, env);
     if (!rl.allowed) {
@@ -229,75 +397,36 @@ export default {
       );
     }
 
-    const primaryModel = (env && env.GEMINI_MODEL) || DEFAULT_MODEL;
-    const fallbackList =
-      env && env.GEMINI_FALLBACK_MODELS
-        ? env.GEMINI_FALLBACK_MODELS.split(",").map((s) => s.trim()).filter(Boolean)
-        : DEFAULT_FALLBACK_MODELS;
-    const candidateModels = [
-      primaryModel,
-      ...fallbackList.filter((m) => m && m !== primaryModel),
-    ];
-
     const systemInstruction = buildSystemInstruction(contextJson);
-    let lastStatus = 502;
-    let lastError = "Failed to reach Gemini API.";
+    const attempts = [];
 
-    for (const model of candidateModels) {
-      const geminiPayload = {
-        model,
-        input: question,
-        system_instruction: systemInstruction,
-        store: false,
-      };
+    // Multi-provider fallback cascade: Gemini -> Groq -> Cloudflare Workers AI
+    const result =
+      (await tryGemini(question, systemInstruction, env, attempts)) ||
+      (await tryGroq(question, systemInstruction, env, attempts)) ||
+      (await tryWorkersAI(question, systemInstruction, env, attempts));
 
-      try {
-        const upstream = await fetch(GEMINI_INTERACTIONS_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": env.GEMINI_API_KEY,
-          },
-          body: JSON.stringify(geminiPayload),
-        });
-
-        const upstreamData = await upstream.json();
-        if (upstream.ok) {
-          const answer = extractOutputText(upstreamData);
-          if (answer) {
-            return jsonResponse(
-              {
-                answer,
-                model,
-                scope: contextObj.scope || null,
-                remaining_requests: rl.remaining,
-              },
-              200,
-              corsOrigin
-            );
-          }
-          lastStatus = 502;
-          lastError = `${model} returned an empty response.`;
-          continue;
-        }
-
-        const msg =
-          (upstreamData && upstreamData.error && upstreamData.error.message) ||
-          `Gemini API HTTP ${upstream.status}`;
-        lastStatus = upstream.status >= 500 ? 503 : upstream.status;
-        lastError = msg;
-
-        // Fall back to next model automatically on transient capacity/rate spikes
-        if (upstream.status === 429 || upstream.status === 500 || upstream.status === 503) {
-          continue;
-        }
-        break;
-      } catch (err) {
-        lastStatus = 502;
-        lastError = err && err.message ? err.message : String(err);
-      }
+    if (result) {
+      return jsonResponse(
+        {
+          answer: result.answer,
+          provider: result.provider,
+          model: result.model,
+          fallback_used: result.provider !== "gemini",
+          scope: contextObj.scope || null,
+          remaining_requests: rl.remaining,
+        },
+        200,
+        corsOrigin
+      );
     }
 
-    return jsonResponse({ error: lastError }, lastStatus, corsOrigin);
+    return jsonResponse(
+      {
+        error: `All configured LLM providers are currently unavailable. Attempts: ${attempts.join(" | ")}`,
+      },
+      503,
+      corsOrigin
+    );
   },
 };

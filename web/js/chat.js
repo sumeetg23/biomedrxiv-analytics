@@ -88,9 +88,10 @@
         appendMessage("bot", `Service Notice (HTTP ${resp.status})`, data.error || `HTTP ${resp.status}`);
         return;
       }
+      const providerTag = data.provider ? `${data.provider} • ` : "";
       appendMessage(
         "bot",
-        `Gemini Analyst (${data.model || "gemini-4-hydrogen"})`,
+        `AI Analyst (${providerTag}${data.model || "gemini-4-hydrogen"})`,
         data.answer
       );
     } catch (err) {
