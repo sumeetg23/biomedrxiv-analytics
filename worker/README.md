@@ -29,16 +29,16 @@ A zero-dependency Cloudflare Worker (Free Tier: 100k req/day, $0/month, no credi
 
 ---
 
-## Step 2: Populate Cloudflare Vectorize RAG Index (Zero Node.js Needed)
+## Step 2: Populate Cloudflare Vectorize RAG Index (Zero Node.js, 0 Indexing Neurons)
 
 ```bash
-# 1. Build compact 12,500-doc corpus (all 3,034 trials + ~399 NIH iCite + ~9,067 top preprints)
+# 1. Build compact 12,500-doc corpus (all 3,034 trials + 399 NIH iCite + 9,067 top preprints)
 .venv/bin/python scripts/build_rag_corpus.py
 
-# 2. Preview Neuron & free-tier dimension usage without network calls
-.venv/bin/python scripts/upload_vectorize.py --dry-run
+# 2. Pre-compute all 12,500 384-dim BAAI/bge-small-en-v1.5 vectors locally (0 Cloudflare Neurons!)
+.venv/bin/python scripts/upload_vectorize.py --embed-only
 
-# 3. Create Vectorize index & upload embeddings (requires Account ID + API token with Workers AI & Vectorize permissions)
+# 3. Create Vectorize index & upload cached vectors (only needs Account -> Vectorize -> Edit token)
 export CLOUDFLARE_ACCOUNT_ID="<32-char-account-id>"
 export CLOUDFLARE_API_TOKEN="<cloudflare-api-token>"
 .venv/bin/python scripts/upload_vectorize.py --ensure-index

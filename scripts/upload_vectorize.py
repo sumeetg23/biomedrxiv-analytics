@@ -1,26 +1,29 @@
 #!/usr/bin/env python3
 """Zero-Node Cloudflare Vectorize v2 uploader for BioRxiv & MedRxiv RAG corpus.
 
-Embeds `data/processed/rag_corpus.jsonl` via Cloudflare Workers AI
-(`@cf/baai/bge-small-en-v1.5`, 384 dims, ~1,841 Neurons per 1M tokens) and
-upserts NDJSON batches directly into Cloudflare Vectorize v2 via REST API.
+Generates 384-dimensional embeddings for `data/processed/rag_corpus.jsonl` using
+the exact `BAAI/bge-small-en-v1.5` model and upserts NDJSON batches directly
+into Cloudflare Vectorize v2 via REST API.
 
-Required environment variables (not needed for --dry-run):
+Embedding backends:
+  --embedder local       (DEFAULT — 0 Cloudflare Neurons! Runs `BAAI/bge-small-en-v1.5`
+                          locally via lightweight ONNX `fastembed`, matching
+                          Cloudflare's `@cf/baai/bge-small-en-v1.5` 384-dim space.)
+  --embedder cloudflare  (Calls Cloudflare Workers AI REST API; ~1,948 Neurons for 12.5k docs)
+
+Required environment variables (not needed for --dry-run or --embed-only):
   CLOUDFLARE_ACCOUNT_ID  — 32-char hex Account ID (visible in dash.cloudflare.com URL)
   CLOUDFLARE_API_TOKEN   — API Token with permissions:
-                             Account -> Workers AI -> Read/Edit
                              Account -> Vectorize -> Edit
+                             (plus Account -> Workers AI -> Edit ONLY if using --embedder cloudflare)
 
 Usage:
-  # 1. Inspect token/Neuron/dimension budget without network calls:
-  .venv/bin/python scripts/upload_vectorize.py --dry-run
+  # 1. Pre-compute all 12,500 embeddings locally (0 Cloudflare Neurons, offline-ready):
+  .venv/bin/python scripts/upload_vectorize.py --embed-only
 
-  # 2. Smoke-test with 100 docs first:
+  # 2. Create Vectorize index & upload cached vectors (takes ~15s, 0 Neurons):
   export CLOUDFLARE_ACCOUNT_ID="..."
   export CLOUDFLARE_API_TOKEN="..."
-  .venv/bin/python scripts/upload_vectorize.py --ensure-index --limit 100
-
-  # 3. Upload full 12,500-doc corpus (resumable via local embedding cache):
   .venv/bin/python scripts/upload_vectorize.py --ensure-index
 """
 
@@ -41,6 +44,7 @@ DEFAULT_CORPUS = PROJECT_ROOT / "data" / "processed" / "rag_corpus.jsonl"
 DEFAULT_CACHE = PROJECT_ROOT / "data" / "cache" / "rag_embeddings_bge_small.jsonl"
 
 EMBEDDING_MODEL = "@cf/baai/bge-small-en-v1.5"
+LOCAL_EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 EMBEDDING_DIMS = 384
 CF_API_BASE = "https://api.cloudflare.com/client/v4"
 
@@ -126,6 +130,44 @@ def ensure_vectorize_index(account_id: str, api_token: str, index_name: str) -> 
                 print(f"[warn] Metadata index '{prop_name}' returned HTTP {mi_resp.status_code}: {body_text[:200]}")
 
 
+def embed_all_local_fastembed(
+    to_embed: list[dict[str, Any]],
+    cache: dict[str, list[float]],
+    cache_path: Path,
+    batch_size: int = 128,
+) -> None:
+    """Generate 384-dim BAAI/bge-small-en-v1.5 vectors locally via fastembed (0 Cloudflare Neurons)."""
+    try:
+        from fastembed import TextEmbedding
+    except ImportError as exc:
+        raise RuntimeError(
+            "Local embedding requires `fastembed`. Install with `.venv/bin/pip install fastembed` "
+            "or pass `--embedder cloudflare`."
+        ) from exc
+
+    t0 = time.monotonic()
+    print(f"Loading local ONNX model '{LOCAL_EMBEDDING_MODEL}' via fastembed (0 Cloudflare Neurons)...")
+    model = TextEmbedding(model_name=LOCAL_EMBEDDING_MODEL)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+    texts = [d["text"] for d in to_embed]
+    with cache_path.open("a", encoding="utf-8") as cf:
+        for idx, (doc, vec_arr) in enumerate(
+            zip(to_embed, model.embed(texts, batch_size=batch_size)),
+            start=1,
+        ):
+            vec = [round(float(x), 6) for x in vec_arr.tolist()]
+            if len(vec) != EMBEDDING_DIMS:
+                raise RuntimeError(f"Expected {EMBEDDING_DIMS} dims, got {len(vec)}")
+            cache[doc["id"]] = vec
+            cf.write(json.dumps({"id": doc["id"], "values": vec}) + "\n")
+            if idx % 1000 == 0 or idx == len(to_embed):
+                cf.flush()
+                elapsed = time.monotonic() - t0
+                rate = idx / max(elapsed, 0.01)
+                print(f"  locally embedded {idx:,}/{len(to_embed):,} ({rate:.0f} docs/s)")
+
+
 def embed_batch_workers_ai(
     account_id: str,
     api_token: str,
@@ -189,12 +231,19 @@ def main() -> int:
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS, help="Path to rag_corpus.jsonl")
     parser.add_argument("--cache", type=Path, default=DEFAULT_CACHE, help="Local embedding cache JSONL")
     parser.add_argument("--index-name", default="biomedrxiv-rag", help="Vectorize index name (default: biomedrxiv-rag)")
-    parser.add_argument("--embed-batch-size", type=int, default=80, help="Texts per Workers AI embed call (default: 80)")
+    parser.add_argument(
+        "--embedder",
+        choices=("local", "cloudflare"),
+        default="local",
+        help="Where to compute BAAI/bge-small-en-v1.5 vectors (default: local = 0 Cloudflare Neurons).",
+    )
+    parser.add_argument("--embed-batch-size", type=int, default=128, help="Batch size for embeddings (default: 128)")
     parser.add_argument("--upsert-batch-size", type=int, default=400, help="Vectors per Vectorize NDJSON upsert (default: 400)")
     parser.add_argument("--limit", type=int, default=None, help="Optional cap for smoke testing (e.g., 100)")
     parser.add_argument("--ensure-index", action="store_true", help="Create Vectorize index + metadata indexes if absent")
-    parser.add_argument("--dry-run", action="store_true", help="Report budget estimates without network calls")
-    parser.add_argument("--delay", type=float, default=0.15, help="Delay between API calls in seconds")
+    parser.add_argument("--embed-only", action="store_true", help="Compute & cache embeddings locally without uploading to Cloudflare")
+    parser.add_argument("--dry-run", action="store_true", help="Report budget estimates without embedding or network calls")
+    parser.add_argument("--delay", type=float, default=0.15, help="Delay between Cloudflare API calls in seconds")
     args = parser.parse_args()
 
     if not args.corpus.exists():
@@ -206,22 +255,38 @@ def main() -> int:
     to_embed = [d for d in docs if d["id"] not in cache]
 
     est_tokens = sum(len(d["text"]) for d in to_embed) // 4
-    est_neurons = (est_tokens / 1_000_000.0) * 1841.0
+    est_neurons = 0.0 if args.embedder == "local" else (est_tokens / 1_000_000.0) * 1841.0
     stored_dims = len(docs) * EMBEDDING_DIMS
 
     summary = {
         "index_name": args.index_name,
+        "embedder": args.embedder,
+        "model": LOCAL_EMBEDDING_MODEL if args.embedder == "local" else EMBEDDING_MODEL,
         "docs_selected": len(docs),
         "already_cached_embeddings": len(docs) - len(to_embed),
         "new_embeddings_needed": len(to_embed),
         "estimated_new_tokens": est_tokens,
-        "estimated_new_neurons": round(est_neurons, 1),
+        "estimated_cloudflare_neurons": round(est_neurons, 1),
         "daily_free_neurons_pct": round((est_neurons / 10_000.0) * 100.0, 2),
         "stored_vector_dimensions": stored_dims,
         "free_vectorize_cap_pct": round((stored_dims / 5_000_000.0) * 100.0, 2),
     }
     print(json.dumps(summary, indent=2))
     if args.dry_run:
+        return 0
+
+    # 1. Embed missing documents (locally = 0 Neurons, or via Cloudflare Workers AI)
+    args.cache.parent.mkdir(parents=True, exist_ok=True)
+    if to_embed and args.embedder == "local":
+        embed_all_local_fastembed(
+            to_embed=to_embed,
+            cache=cache,
+            cache_path=args.cache,
+            batch_size=args.embed_batch_size,
+        )
+
+    if args.embed_only:
+        print(f"Done! {len(docs):,} embeddings cached at {args.cache} (0 Cloudflare Neurons spent).")
         return 0
 
     account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
@@ -233,12 +298,7 @@ def main() -> int:
         )
         return 2
 
-    if args.ensure_index:
-        ensure_vectorize_index(account_id, api_token, args.index_name)
-
-    # 1. Embed missing documents (persisting incrementally to cache)
-    args.cache.parent.mkdir(parents=True, exist_ok=True)
-    if to_embed:
+    if to_embed and args.embedder == "cloudflare":
         print(f"Embedding {len(to_embed):,} documents via {EMBEDDING_MODEL}...")
         with args.cache.open("a", encoding="utf-8") as cf:
             for start in range(0, len(to_embed), args.embed_batch_size):
@@ -257,6 +317,9 @@ def main() -> int:
                     print(f"  embedded {done:,}/{len(to_embed):,}")
                 if args.delay > 0:
                     time.sleep(args.delay)
+
+    if args.ensure_index:
+        ensure_vectorize_index(account_id, api_token, args.index_name)
 
     # 2. Upsert all selected vectors to Vectorize v2 in NDJSON batches
     print(f"Upserting {len(docs):,} vectors into Vectorize index '{args.index_name}'...")
