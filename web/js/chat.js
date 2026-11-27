@@ -334,6 +334,14 @@
               null,
               sqlOut.sqlResult
             );
+            if (typeof window.trackDashboardEvent === "function") {
+              window.trackDashboardEvent("ai_query", {
+                provider: sqlOut.provider || provider,
+                model: sqlOut.model || "unknown",
+                tier: "sql_454k",
+                sql_elapsed_ms: sqlOut.sqlResult.elapsedMs,
+              });
+            }
             return;
           }
         } catch (sqlErr) {
@@ -361,6 +369,13 @@
         data.answer,
         data.sources
       );
+      if (typeof window.trackDashboardEvent === "function") {
+        window.trackDashboardEvent("ai_query", {
+          provider: data.provider || provider,
+          model: data.model || "unknown",
+          tier: data.rag_used ? "rag" : "dashboard_json",
+        });
+      }
     } catch (err) {
       appendMessage(
         "bot",
@@ -380,6 +395,9 @@
     document.getElementById("chat-backdrop").classList.add("open");
     updateContextBanner();
     updateSetupVisibility();
+    if (typeof window.trackDashboardEvent === "function") {
+      window.trackDashboardEvent("ai_drawer_open", {});
+    }
   }
 
   function closeDrawer() {

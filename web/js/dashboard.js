@@ -1808,17 +1808,26 @@ async function init() {
   document.getElementById("category-select").addEventListener("change", (e) => {
     currentCategory = e.target.value;
     renderActiveTab();
+    if (typeof window.trackDashboardEvent === "function") {
+      window.trackDashboardEvent("filter_change", { filter_type: "category", value: currentCategory });
+    }
   });
 
   startSel.addEventListener("change", () => {
     const s = Number(startSel.value);
     const e = Math.max(s, Number(endSel.value));
     setYearRange(s, e);
+    if (typeof window.trackDashboardEvent === "function") {
+      window.trackDashboardEvent("filter_change", { filter_type: "year_range", value: `${s}-${e}` });
+    }
   });
   endSel.addEventListener("change", () => {
     const e = Number(endSel.value);
     const s = Math.min(Number(startSel.value), e);
     setYearRange(s, e);
+    if (typeof window.trackDashboardEvent === "function") {
+      window.trackDashboardEvent("filter_change", { filter_type: "year_range", value: `${s}-${e}` });
+    }
   });
 
   document.querySelectorAll(".preset-btn").forEach((btn) => {
@@ -1831,6 +1840,9 @@ async function init() {
       else if (p === "mature") setYearRange(minY, Math.min(matureY, maxY));
       else if (p === "last5") setYearRange(Math.max(minY, maxY - 4), maxY);
       else if (p === "covid") setYearRange(Math.max(minY, 2020), Math.min(maxY, 2021));
+      if (typeof window.trackDashboardEvent === "function") {
+        window.trackDashboardEvent("filter_change", { filter_type: "year_preset", value: p });
+      }
     });
   });
 
@@ -1848,6 +1860,9 @@ async function init() {
       currentServer = btn.dataset.server;
       populateCategoryDropdown();
       renderActiveTab();
+      if (typeof window.trackDashboardEvent === "function") {
+        window.trackDashboardEvent("filter_change", { filter_type: "server", value: currentServer });
+      }
     });
   });
 
@@ -1859,6 +1874,9 @@ async function init() {
       currentTab = btn.dataset.tab;
       document.getElementById(`tab-${currentTab}`).classList.add("active");
       renderActiveTab();
+      if (typeof window.trackDashboardEvent === "function") {
+        window.trackDashboardEvent("tab_switch", { tab_name: currentTab });
+      }
     });
   });
 
@@ -1876,6 +1894,9 @@ async function init() {
     html.setAttribute("data-theme", next);
     e.target.textContent = next === "dark" ? "Light Mode" : "Dark Mode";
     renderActiveTab();
+    if (typeof window.trackDashboardEvent === "function") {
+      window.trackDashboardEvent("theme_toggle", { theme: next });
+    }
   });
 
   updatePresetHighlight();

@@ -4,12 +4,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BioRxiv &amp; MedRxiv Preprint Analytics Dashboard</title>
-  <link rel="stylesheet" href="./css/styles.css?v=20261126g" />
+  <!-- Google tag (gtag.js) — skipped on localhost so local previews don't pollute GA4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-L8W53T92MR"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    (function () {
+      var host = window.location.hostname;
+      var isLocal = host === "localhost" || host === "127.0.0.1" || host === "";
+      if (!isLocal) {
+        gtag("js", new Date());
+        gtag("config", "G-L8W53T92MR");
+      }
+      window.trackDashboardEvent = function (eventName, params) {
+        if (isLocal || typeof window.gtag !== "function") return;
+        try {
+          window.gtag("event", eventName, params || {});
+        } catch (_) {}
+      };
+    })();
+  </script>
+  <link rel="stylesheet" href="./css/styles.css?v=20261127" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8" defer></script>
-  <script src="./config.js?v=20261126g" defer></script>
-  <script src="./js/dashboard.js?v=20261126" defer></script>
-  <script src="./js/duckdb_client.js?v=20261126g" defer></script>
-  <script src="./js/chat.js?v=20261126g" defer></script>
+  <script src="./config.js?v=20261127" defer></script>
+  <script src="./js/dashboard.js?v=20261127" defer></script>
+  <script src="./js/duckdb_client.js?v=20261127" defer></script>
+  <script src="./js/chat.js?v=20261127" defer></script>
 </head>
 <body>
   <header class="topbar">

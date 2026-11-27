@@ -10,4 +10,6 @@ window.BIOMEDRXIV_CHAT_CONFIG = {
   // Can also be pointed to a public Hugging Face Dataset URL:
   //   "https://huggingface.co/datasets/<user>/<repo>/resolve/main"
   parquetBaseUrl: "./data/parquet",
+  // Public Google Analytics 4 Measurement ID (skipped automatically on localhost)
+  gaMeasurementId: "G-L8W53T92MR",
 };
