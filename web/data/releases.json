@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "active_release_tag": "",
+  "releases": [
+    {
+      "tag": "data-v2026.11",
+      "recorded_at_utc": "2026-11-27T21:13:21Z",
+      "snapshot_version_id": "v20261122_204306_69c9f17f",
+      "unique_dois": 454051,
+      "total_version_rows": 0,
+      "date_min": "2013-11-07",
+      "date_max": "2026-11-22",
+      "overall_pub_rate_pct": 48.94,
+      "clinical_trial_links": 0,
+      "parquet_total_mib": 21.67,
+      "gates_passed": true,
+      "sha256": {
+        "preprints.parquet": "79e819a3ab1552453e59f629ec06bde77d59df5ede6445ccdc3b28c6ea6ee186",
+        "clinical_trials.parquet": "14205e7494b9f1c27a27546245160657ea1e5d31e4e3be5a19af6301ff444d06",
+        "downstream_clinical.parquet": "dcd81038443daac4df15e5f263fd578b34224452fefd9f0169a9b81360a66043",
+        "manifest.json": "e280d2c9ca373879bfa17b2283ab3e607232d5fc9d81d26244f5b5e6b44977cc"
+      }
+    }
+  ]
+}

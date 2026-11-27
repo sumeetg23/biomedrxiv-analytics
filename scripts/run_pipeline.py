@@ -37,9 +37,11 @@ from biomedrxiv.etl import (
     materialize_parquet_tables,
 )
 from biomedrxiv.quality_gates import evaluate_quality_gates
+from biomedrxiv.rag_corpus import build_rag_corpus
 from biomedrxiv.release_agent import build_release_digest_markdown
 from biomedrxiv.ror_dedup import build_institution_ror_mapping
 from biomedrxiv.versioning import DatasetVersionManager
+from biomedrxiv.web_parquet import export_web_parquet
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -72,6 +74,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--use-gemini",
         action="store_true",
         help="Generate Gemini executive summary / failure triage if GEMINI_API_KEY is set.",
+    )
+    parser.add_argument(
+        "--export-web-parquet",
+        action="store_true",
+        help="Also export compact sorted Web Parquet bundle into web/data/parquet/ for DuckDB-Wasm.",
+    )
+    parser.add_argument(
+        "--build-rag",
+        action="store_true",
+        help="Also rebuild data/processed/rag_corpus.jsonl for Cloudflare Vectorize RAG.",
     )
     parser.add_argument(
         "--output-markdown",
@@ -148,6 +160,28 @@ def main(argv: list[str] | None = None) -> int:
 
         payload = build_analytics_payload(paths, audit=audit)
         export_dashboard_json(payload, dashboard_json)
+
+        if args.export_web_parquet:
+            wp_stats = export_web_parquet(
+                processed_dir=paths.processed_dir,
+                output_dir=PROJECT_ROOT / "web" / "data" / "parquet",
+            )
+            logger.info(
+                "Exported Web Parquet bundle: %d preprints, %d trials, %.2f MiB total",
+                wp_stats.preprints_rows,
+                wp_stats.clinical_trials_rows,
+                wp_stats.total_mib,
+            )
+
+        if args.build_rag:
+            rag_stats = build_rag_corpus(processed_dir=paths.processed_dir)
+            logger.info(
+                "Built Vectorize RAG corpus: %d docs (%d trials, %d iCite, %d preprints)",
+                rag_stats.total_docs,
+                rag_stats.clinical_trial_docs,
+                rag_stats.downstream_clinical_docs,
+                rag_stats.general_preprint_docs,
+            )
 
         report = evaluate_quality_gates(
             candidate_json_path=dashboard_json,

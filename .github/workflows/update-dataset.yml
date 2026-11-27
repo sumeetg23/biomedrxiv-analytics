@@ -1,21 +1,41 @@
-name: Automated Dataset Update, Quality Gates & Release PR
+name: Monthly Automated Dataset Update, Quality Gates & Release PR
 
 on:
   schedule:
-    # Weekly on Sundays at 08:00 UTC
-    - cron: "0 8 * * 0"
+    # Monthly on the 1st of each month at 08:00 UTC
+    - cron: "0 8 1 * *"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional release tag override (default: data-vYYYY.MM)"
+        required: false
+        default: ""
+      force_kaggle_bootstrap:
+        description: "Force fresh Kaggle base download instead of hydrating prior GitHub Release"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  sync-validate-and-pr:
+  monthly-sync-validate-and-pr:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Determine monthly release tag
+        id: meta
+        shell: bash
+        run: |
+          TAG="${{ inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="data-v$(date -u +%Y.%m)"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG}"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -25,44 +45,88 @@ jobs:
       - name: Install dependencies
         run: |
           python -m venv .venv
+          .venv/bin/pip install --upgrade pip
           .venv/bin/pip install -r requirements.txt
 
       - name: Run unit tests before data sync
         run: .venv/bin/pytest -v
 
-      - name: Run full hybrid sync (Kaggle base + live bioRxiv/medRxiv API delta), ETL, trials & quality gates
+      - name: Hydrate previous monthly GitHub Release snapshot & caches (fast incremental start)
+        id: hydrate
+        if: ${{ !inputs.force_kaggle_bootstrap }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          .venv/bin/python scripts/manage_data_release.py hydrate-base --tag latest
+          if [ -f data/current/biorxiv_medrxiv_preprints.csv ]; then
+            echo "source_mode=biorxiv-api" >> "$GITHUB_OUTPUT"
+          else
+            echo "source_mode=both" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run ETL, incremental API sync, NCT/ROR enrichment, Web Parquet, RAG corpus & Quality Gates
         id: pipeline
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          SRC_MODE="${{ steps.hydrate.outputs.source_mode }}"
+          if [ -z "$SRC_MODE" ]; then
+            SRC_MODE="both"
+          fi
+          echo "Running pipeline with --source ${SRC_MODE}"
           .venv/bin/python scripts/run_pipeline.py \
-            --source both \
+            --source "${SRC_MODE}" \
             --enrich-nct \
             --dedup-ror \
+            --export-web-parquet \
+            --build-rag \
             --use-gemini \
             --output-markdown logs/release_digest.md
 
-      - name: Upload quality report & update logs
+      - name: Compute incremental local BGE embeddings (0 Cloudflare Neurons)
+        run: |
+          .venv/bin/python scripts/upload_vectorize.py --embed-only
+
+      - name: Stage & publish candidate Prerelease on GitHub Releases (zero .git bloat)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STAGE_DIR="/tmp/release_${{ steps.meta.outputs.tag }}"
+          .venv/bin/python scripts/manage_data_release.py package \
+            --stage-dir "${STAGE_DIR}"
+          .venv/bin/python scripts/manage_data_release.py publish \
+            --tag "${{ steps.meta.outputs.tag }}" \
+            --stage-dir "${STAGE_DIR}" \
+            --prerelease \
+            --notes-file logs/release_digest.md
+
+      - name: Record provenance & checksums in web/data/releases.json
+        run: |
+          .venv/bin/python scripts/manage_data_release.py record-ledger \
+            --tag "${{ steps.meta.outputs.tag }}"
+
+      - name: Upload quality report & release logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: release-digest-and-logs
+          name: release-digest-${{ steps.meta.outputs.tag }}
           path: |
             logs/release_digest.md
-            data/registry.json
+            web/data/releases.json
 
-      - name: Open Pull Request if dashboard_data.json updated
+      - name: Open Review Pull Request (JSON + ledger only; Parquet stays in GitHub Release)
         if: success()
         uses: peter-evans/create-pull-request@v7
         with:
-          commit-message: "data: automated Bio&Med-Rxiv dataset refresh"
-          branch: "automated/dataset-refresh"
+          commit-message: "data: monthly Bio&Med-Rxiv refresh (${{ steps.meta.outputs.tag }})"
+          branch: "automated/dataset-refresh-${{ steps.meta.outputs.tag }}"
           delete-branch: true
-          title: "Automated Dataset Refresh & Quality Gate Digest"
+          title: "Monthly Dataset Refresh (${{ steps.meta.outputs.tag }}) & Quality Gate Digest"
           body-path: logs/release_digest.md
           add-paths: |
             web/data/dashboard_data.json
+            web/data/releases.json
           labels: |
             automated-data-update
