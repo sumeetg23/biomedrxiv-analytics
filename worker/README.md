@@ -20,11 +20,29 @@ A zero-dependency Cloudflare Worker (Free Tier: 100k req/day, $0/month, no credi
 3. Go to **Settings → Runtime variables and secrets → + Add variable**:
    - `GEMINI_API_KEY` (Type: **Secret**) — from https://aistudio.google.com/apikey
    - `GROQ_API_KEY` *(optional Fallback 1, Type: **Secret**)* — free key from https://console.groq.com/keys
-4. Go to **Settings → Bindings → + Add binding → Workers AI** *(optional Fallback 2, free 10,000 Neurons/day)*:
-   - **Variable name:** `AI`
+4. Go to **Settings → Bindings → + Add binding**:
+   - **Workers AI** → Variable name: `AI` (powers Fallback 2 AND RAG query embeddings; free 10,000 Neurons/day)
+   - **Vectorize** *(Step 2 RAG — after running `scripts/upload_vectorize.py --ensure-index`)* → Variable name: `VECTORIZE`, Index: `biomedrxiv-rag`
    - Click **Deploy**.
-5. Verify all active providers at:
+5. Verify all active providers and RAG status at:
    `https://biomedrxiv-gemini-proxy.<your-subdomain>.workers.dev/health`
+
+---
+
+## Step 2: Populate Cloudflare Vectorize RAG Index (Zero Node.js Needed)
+
+```bash
+# 1. Build compact 12,500-doc corpus (all 3,034 trials + ~399 NIH iCite + ~9,067 top preprints)
+.venv/bin/python scripts/build_rag_corpus.py
+
+# 2. Preview Neuron & free-tier dimension usage without network calls
+.venv/bin/python scripts/upload_vectorize.py --dry-run
+
+# 3. Create Vectorize index & upload embeddings (requires Account ID + API token with Workers AI & Vectorize permissions)
+export CLOUDFLARE_ACCOUNT_ID="<32-char-account-id>"
+export CLOUDFLARE_API_TOKEN="<cloudflare-api-token>"
+.venv/bin/python scripts/upload_vectorize.py --ensure-index
+```
 
 ---
 

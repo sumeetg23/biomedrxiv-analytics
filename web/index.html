@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BioRxiv &amp; MedRxiv Preprint Analytics Dashboard</title>
-  <link rel="stylesheet" href="./css/styles.css?v=20261126e" />
+  <link rel="stylesheet" href="./css/styles.css?v=20261126f" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8" defer></script>
   <script src="./config.js?v=20261126b" defer></script>
   <script src="./js/dashboard.js?v=20261126" defer></script>
-  <script src="./js/chat.js?v=20261126e" defer></script>
+  <script src="./js/chat.js?v=20261126f" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -411,6 +411,7 @@
         <option value="groq">Groq (gpt-oss-120b)</option>
         <option value="workers_ai">Workers AI (Llama 3.1 8B)</option>
       </select>
+      <span id="chat-rag-badge" class="chat-rag-badge" title="Cloudflare Vectorize semantic search over clinical trials & top preprints">RAG: checking</span>
     </div>
 
     <div id="chat-drawer-suggestions" class="chat-suggestions">

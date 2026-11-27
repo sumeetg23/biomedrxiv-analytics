@@ -78,6 +78,16 @@
         opt.disabled = !ok;
         opt.textContent = ok ? labels[key] : `${labels[key]} — not configured`;
       }
+
+      const ragBadge = document.getElementById("chat-rag-badge");
+      if (ragBadge) {
+        const ragOn = Boolean(info && info.rag && info.rag.configured);
+        ragBadge.textContent = ragOn ? "RAG: ON" : "RAG: OFF";
+        ragBadge.classList.toggle("rag-on", ragOn);
+        ragBadge.title = ragOn
+          ? "Vectorize semantic search active (3,034 clinical trials + NIH iCite + top preprints)"
+          : "Vectorize index not bound yet — answering from dashboard aggregate slice";
+      }
     } catch {
       // Leave default options intact if /health is unreachable
     }
@@ -88,13 +98,55 @@
     return select ? select.value : "auto";
   }
 
-  function appendMessage(role, meta, text) {
+  function renderSourcesHtml(sources) {
+    if (!Array.isArray(sources) || !sources.length) return "";
+    const items = sources
+      .map((s) => {
+        const link = s.doi_link || (s.doi ? `https://doi.org/${s.doi}` : "");
+        const titleHtml = link
+          ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(s.title || s.doi)}</a>`
+          : esc(s.title || s.doi || "Untitled record");
+        const bits = [];
+        if (s.trial_id) {
+          const ctLink = /^NCT\d+$/i.test(s.trial_id)
+            ? `<a href="https://clinicaltrials.gov/study/${esc(s.trial_id)}" target="_blank" rel="noopener noreferrer" class="chat-source-tag">${esc(s.trial_id)}</a>`
+            : `<span class="chat-source-tag">${esc(s.trial_id)}</span>`;
+          bits.push(ctLink);
+        } else if (s.doc_type === "downstream_clinical") {
+          bits.push(`<span class="chat-source-tag">NIH iCite</span>`);
+        }
+        if (s.server) bits.push(esc(s.server));
+        if (s.year) bits.push(esc(s.year));
+        if (s.phase) bits.push(esc(s.phase));
+        if (typeof s.enrollment === "number") bits.push(`n=${esc(s.enrollment.toLocaleString())}`);
+        if (typeof s.cited_by_clin === "number" && s.cited_by_clin > 0) {
+          bits.push(`${esc(s.cited_by_clin)} clin. cites`);
+        }
+        if (s.publisher) bits.push(esc(s.publisher));
+        return (
+          `<li class="chat-source-item">` +
+          `<div class="chat-source-title">${titleHtml}</div>` +
+          `<div class="chat-source-meta">${bits.join(" &middot; ")}</div>` +
+          `</li>`
+        );
+      })
+      .join("");
+    return (
+      `<details class="chat-sources">` +
+      `<summary>Retrieved Evidence (${sources.length} paper${sources.length === 1 ? "" : "s"}/trial${sources.length === 1 ? "" : "s"})</summary>` +
+      `<ul class="chat-sources-list">${items}</ul>` +
+      `</details>`
+    );
+  }
+
+  function appendMessage(role, meta, text, sources) {
     const log = document.getElementById("chat-drawer-log");
     const div = document.createElement("div");
     div.className = `chat-msg ${role === "user" ? "chat-msg-user" : "chat-msg-bot"}`;
     div.innerHTML =
       `<div class="chat-msg-meta">${esc(meta)}</div>` +
-      `<div class="chat-msg-body">${role === "user" ? esc(text) : renderMarkdownLite(text)}</div>`;
+      `<div class="chat-msg-body">${role === "user" ? esc(text) : renderMarkdownLite(text)}</div>` +
+      (role === "bot" ? renderSourcesHtml(sources) : "");
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
   }
@@ -130,10 +182,12 @@
         return;
       }
       const providerTag = data.provider ? `${data.provider} • ` : "";
+      const ragTag = data.rag_used ? " • RAG" : "";
       appendMessage(
         "bot",
-        `AI Analyst (${providerTag}${data.model || "gemini-4-hydrogen"})`,
-        data.answer
+        `AI Analyst (${providerTag}${data.model || "gemini-4-hydrogen"}${ragTag})`,
+        data.answer,
+        data.sources
       );
     } catch (err) {
       appendMessage(

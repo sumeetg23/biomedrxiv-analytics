@@ -1,10 +1,15 @@
 /**
- * Cloudflare Worker — Multi-Provider LLM Proxy for BioRxiv & MedRxiv Dashboard
+ * Cloudflare Worker — Multi-Provider LLM + Vectorize RAG Proxy for BioRxiv & MedRxiv Dashboard
  *
- * Step 1 of the Unified Architecture: Multi-Provider LLM Fallback Chain
- *   1. Primary:    Google Gemini Interactions API (gemini-4-hydrogen -> gemini-4-argon -> gemini-3.5-flash-lite)
- *   2. Fallback 1: Groq OpenAI-compatible API (openai/gpt-oss-120b -> qwen/qwen3.8-27b)
- *   3. Fallback 2: Cloudflare Workers AI binding (`env.AI`, 10,000 Neurons/day free)
+ * Unified Architecture (Steps 1 & 2):
+ *   LLM Fallback Chain:
+ *     1. Primary:    Google Gemini Interactions API (gemini-4-hydrogen -> gemini-4-argon -> gemini-3.5-flash-lite)
+ *     2. Fallback 1: Groq OpenAI-compatible API (openai/gpt-oss-120b -> qwen/qwen3.8-27b)
+ *     3. Fallback 2: Cloudflare Workers AI binding (`env.AI`, 10,000 Neurons/day free)
+ *   Data Retrieval Tiers:
+ *     - Tier 0: Active 4.7 KB Dashboard JSON slice (KPIs, trends, charts)
+ *     - Tier 1: Cloudflare Vectorize RAG (`env.VECTORIZE` + `@cf/baai/bge-small-en-v1.5`)
+ *               covering all 3,034 clinical trials + 400 NIH iCite papers + ~9,000 top preprints
  *
  * Zero external dependencies: deploy via `wrangler deploy` OR paste directly into
  * the Cloudflare Workers Web Dashboard editor.
@@ -13,14 +18,17 @@
  *   - GEMINI_API_KEY   (Primary — Google AI Studio)
  *   - GROQ_API_KEY     (Optional Fallback 1 — https://console.groq.com/keys)
  *
- * Bindings (Cloudflare Dashboard -> Settings -> Bindings -> Add binding -> Workers AI):
- *   - AI               (Optional Fallback 2 — zero API key required)
+ * Bindings (Cloudflare Dashboard -> Settings -> Bindings):
+ *   - AI               (Workers AI — powers Fallback 2 AND RAG query embeddings)
+ *   - VECTORIZE        (Optional Vectorize index `biomedrxiv-rag` — enables Tier 1 RAG)
  *
  * Optional Text Variables:
  *   - GEMINI_MODEL           (default: "gemini-4-hydrogen")
  *   - GEMINI_FALLBACK_MODELS (default: "gemini-4-argon,gemini-3.5-flash-lite")
  *   - GROQ_MODELS            (default: "openai/gpt-oss-120b,qwen/qwen3.8-27b")
  *   - WORKERS_AI_MODELS      (default: "@cf/meta/llama-3.1-8b-instruct-fast,@cf/meta/llama-3.1-8b-instruct-fp8")
+ *   - RAG_EMBEDDING_MODEL    (default: "@cf/baai/bge-small-en-v1.5")
+ *   - RAG_TOP_K              (default: "8")
  *   - ALLOWED_ORIGINS        (default: "https://sumeetg23.github.io,http://127.0.0.1:8080,http://localhost:8080")
  *   - RATE_LIMIT_MAX         (default: "20" requests per window per IP)
  *   - RATE_LIMIT_WINDOW_SEC  (default: "600" seconds = 10 minutes)
@@ -36,6 +44,9 @@ const DEFAULT_WORKERS_AI_MODELS = [
   "@cf/meta/llama-3.1-8b-instruct-fast",
   "@cf/meta/llama-3.1-8b-instruct-fp8",
 ];
+const DEFAULT_RAG_EMBEDDING_MODEL = "@cf/baai/bge-small-en-v1.5";
+const DEFAULT_RAG_TOP_K = 8;
+const RAG_MIN_SCORE = 0.3;
 
 const MAX_QUESTION_CHARS = 1000;
 const MAX_CONTEXT_BYTES = 45_000;
@@ -152,19 +163,167 @@ function extractGeminiOutputText(interaction) {
   return "";
 }
 
-function buildSystemInstruction(contextJson) {
-  return [
+function isRagConfigured(env) {
+  return Boolean(
+    env &&
+      env.VECTORIZE &&
+      typeof env.VECTORIZE.query === "function" &&
+      env.AI &&
+      typeof env.AI.run === "function"
+  );
+}
+
+async function retrieveRagSources(question, contextObj, env) {
+  if (!isRagConfigured(env)) return { sources: [], ragNote: null };
+
+  const embedModel = (env && env.RAG_EMBEDDING_MODEL) || DEFAULT_RAG_EMBEDDING_MODEL;
+  const topK = Math.min(15, Math.max(1, Number((env && env.RAG_TOP_K) || DEFAULT_RAG_TOP_K)));
+  const scope = (contextObj && contextObj.scope) || {};
+
+  // Build embedding query enriched with active category/server hints when narrowed
+  const queryParts = [question];
+  if (scope.server && scope.server !== "all") queryParts.push(`server: ${scope.server}`);
+  if (scope.category && scope.category !== "all") queryParts.push(`category: ${scope.category}`);
+  const embedInput = queryParts.join(" | ").slice(0, 600);
+
+  try {
+    const emb = await env.AI.run(embedModel, { text: [embedInput] });
+    const vector =
+      (emb && Array.isArray(emb.data) && Array.isArray(emb.data[0]) && emb.data[0]) ||
+      (emb && emb.result && Array.isArray(emb.result.data) && emb.result.data[0]) ||
+      null;
+    if (!vector) return { sources: [], ragNote: "embedding_unavailable" };
+
+    const queryResult = await env.VECTORIZE.query(vector, {
+      topK: Math.min(24, topK * 2 + 4),
+      returnMetadata: "all",
+    });
+    const rawMatches = (queryResult && Array.isArray(queryResult.matches) && queryResult.matches) || [];
+    if (!rawMatches.length) return { sources: [], ragNote: "no_matches" };
+
+    const qLower = question.toLowerCase();
+    const wantsTrials = /\b(trial|trials|nct\d*|phase\s*[1-4i]|enrollment|sponsor|randomized|clinicaltrials)\b/i.test(
+      qLower
+    );
+    const wantsDownstream = /\b(icite|downstream|translational|apt|rcr|cited by clinical|guideline)\b/i.test(qLower);
+
+    const scored = rawMatches
+      .filter((m) => m && m.metadata && (typeof m.score !== "number" || m.score >= RAG_MIN_SCORE))
+      .map((m) => {
+        const meta = m.metadata;
+        let rankScore = typeof m.score === "number" ? m.score : 0;
+        if (scope.server && scope.server !== "all" && meta.server === scope.server) rankScore += 0.05;
+        if (scope.category && scope.category !== "all" && meta.category === scope.category) rankScore += 0.08;
+        if (
+          typeof scope.year_start === "number" &&
+          typeof scope.year_end === "number" &&
+          typeof meta.year === "number" &&
+          meta.year >= scope.year_start &&
+          meta.year <= scope.year_end
+        ) {
+          rankScore += 0.03;
+        }
+        if (wantsTrials && meta.doc_type === "clinical_trial") rankScore += 0.06;
+        if (wantsDownstream && meta.doc_type === "downstream_clinical") rankScore += 0.06;
+
+        return {
+          id: m.id,
+          score: typeof m.score === "number" ? Number(m.score.toFixed(4)) : null,
+          _rank: rankScore,
+          doc_type: meta.doc_type || "preprint",
+          title: meta.title || "",
+          doi: meta.doi || "",
+          doi_link: meta.doi_link || (meta.doi ? `https://doi.org/${meta.doi}` : ""),
+          server: meta.server || null,
+          category: meta.category || null,
+          year: typeof meta.year === "number" ? meta.year : null,
+          institution: meta.institution || null,
+          country: meta.country || null,
+          published: typeof meta.published === "boolean" ? meta.published : null,
+          publisher: meta.publisher || null,
+          published_doi: meta.published_doi || null,
+          trial_id: meta.trial_id || null,
+          registry: meta.registry || null,
+          phase: meta.phase || null,
+          status: meta.status || null,
+          sponsor: meta.sponsor || null,
+          enrollment: typeof meta.enrollment === "number" ? meta.enrollment : null,
+          conditions: meta.conditions || null,
+          cited_by_clin: typeof meta.cited_by_clin === "number" ? meta.cited_by_clin : null,
+          apt: typeof meta.apt === "number" ? meta.apt : null,
+          rcr: typeof meta.rcr === "number" ? meta.rcr : null,
+          topics: meta.topics || null,
+        };
+      })
+      .sort((a, b) => b._rank - a._rank)
+      .slice(0, topK)
+      .map(({ _rank, ...clean }) => clean);
+
+    return { sources: scored, ragNote: null };
+  } catch (err) {
+    return {
+      sources: [],
+      ragNote: `rag_error:${err && err.message ? err.message : String(err)}`,
+    };
+  }
+}
+
+function formatRagEvidenceForPrompt(sources) {
+  if (!sources || !sources.length) return "";
+  const compact = sources.map((s, idx) => {
+    const entry = {
+      rank: idx + 1,
+      type: s.doc_type,
+      title: s.title,
+      doi: s.doi,
+      server: s.server,
+      category: s.category,
+      year: s.year,
+    };
+    if (s.institution) entry.institution = s.country ? `${s.institution} (${s.country})` : s.institution;
+    if (s.published !== null) entry.published = s.published;
+    if (s.publisher) entry.publisher = s.publisher;
+    if (s.published_doi) entry.published_doi = s.published_doi;
+    if (s.trial_id) entry.trial_id = s.trial_id;
+    if (s.phase) entry.phase = s.phase;
+    if (s.status) entry.status = s.status;
+    if (s.enrollment !== null) entry.enrollment = s.enrollment;
+    if (s.sponsor) entry.sponsor = s.sponsor;
+    if (s.conditions) entry.conditions = s.conditions;
+    if (s.cited_by_clin !== null) entry.cited_by_clin = s.cited_by_clin;
+    if (s.apt !== null) entry.apt = s.apt;
+    if (s.rcr !== null) entry.rcr = s.rcr;
+    return entry;
+  });
+  return JSON.stringify(compact);
+}
+
+function buildSystemInstruction(contextJson, ragSources) {
+  const hasRag = Array.isArray(ragSources) && ragSources.length > 0;
+  const lines = [
     "You are a concise biomedical data analyst embedded in the BioRxiv & MedRxiv Preprint Analytics Dashboard.",
-    "Answer the user's question STRICTLY from the JSON data slice provided below (reflecting the user's currently active Subject Category, Year Range, and Server filters).",
+    hasRag
+      ? "Answer the user's question STRICTLY from (A) the Active Dashboard Data Slice JSON (aggregate counts/KPIs/trends) and (B) the Retrieved Paper- & Trial-Level Evidence below (semantic search matches from our indexed corpus of 3,034 clinical trials, 400 NIH iCite translational papers, and ~9,000 top preprints)."
+      : "Answer the user's question STRICTLY from the JSON data slice provided below (reflecting the user's currently active Subject Category, Year Range, and Server filters).",
     "Rules:",
-    "1. Never invent statistics, journals, trial IDs, or institutions not present in the provided JSON slice.",
-    "2. If the question asks for paper-level ad-hoc SQL outside this aggregated slice (e.g., an unlisted specific paper or abstract text), clearly state what IS in the current slice and mention they can query all 454k rows locally via `scripts/run_qa_app.py` (DuckDB).",
+    "1. Never invent statistics, journals, trial IDs, enrollments, DOIs, or institutions not present in the provided data.",
+    hasRag
+      ? "2. Use the Dashboard JSON for corpus-wide totals, rates, and trends; cite specific paper titles, DOIs, NCT IDs, phases, enrollments, and publishers from the Retrieved Evidence when relevant. Note clearly that semantic retrieval returns the top matching records from the indexed subset (~12.5k records), not an exhaustive SQL scan across all 454,051 rows (for exhaustive SQL, mention `scripts/run_qa_app.py`)."
+      : "2. If the question asks for paper-level ad-hoc SQL outside this aggregated slice (e.g., an unlisted specific paper or abstract text), clearly state what IS in the current slice and mention they can query all 454k rows locally via `scripts/run_qa_app.py` (DuckDB).",
     "3. When comparing recent years (2025–2026), briefly note peer-review right-censoring.",
     "4. Keep answers clear, well-structured, and concise (bullet points + exact numbers with commas and 1–2 decimal percentages).",
     "",
     "ACTIVE DASHBOARD DATA SLICE (JSON):",
     contextJson,
-  ].join("\n");
+  ];
+  if (hasRag) {
+    lines.push(
+      "",
+      `RETRIEVED PAPER- & TRIAL-LEVEL EVIDENCE (Top ${ragSources.length} semantic matches, JSON):`,
+      formatRagEvidenceForPrompt(ragSources)
+    );
+  }
+  return lines.join("\n");
 }
 
 async function tryGemini(question, systemInstruction, env, attempts) {
@@ -324,6 +483,11 @@ export default {
               models: parseCsvList(env && env.WORKERS_AI_MODELS, DEFAULT_WORKERS_AI_MODELS),
             },
           },
+          rag: {
+            configured: isRagConfigured(env),
+            embedding_model: (env && env.RAG_EMBEDDING_MODEL) || DEFAULT_RAG_EMBEDDING_MODEL,
+            top_k: Number((env && env.RAG_TOP_K) || DEFAULT_RAG_TOP_K),
+          },
         },
         200,
         corsOrigin || "*"
@@ -410,8 +574,14 @@ export default {
       );
     }
     const requestedProvider = rawProvider === "workers-ai" ? "workers_ai" : rawProvider;
+    const useRag = body.use_rag !== false;
 
-    const systemInstruction = buildSystemInstruction(contextJson);
+    const ragResult = useRag
+      ? await retrieveRagSources(question, contextObj, env)
+      : { sources: [], ragNote: "disabled_by_client" };
+    const ragSources = ragResult.sources;
+
+    const systemInstruction = buildSystemInstruction(contextJson, ragSources);
     const attempts = [];
 
     let result = null;
@@ -446,6 +616,8 @@ export default {
           model: result.model,
           requested_provider: requestedProvider,
           fallback_used: requestedProvider === "auto" && result.provider !== "gemini",
+          rag_used: ragSources.length > 0,
+          sources: ragSources,
           scope: contextObj.scope || null,
           remaining_requests: rl.remaining,
         },
