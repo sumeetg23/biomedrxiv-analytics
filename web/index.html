@@ -24,61 +24,67 @@
       };
     })();
   </script>
-  <link rel="stylesheet" href="./css/styles.css?v=20261127b" />
+  <link rel="stylesheet" href="./css/styles.css?v=20261127c" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8" defer></script>
   <script src="./config.js?v=20261127" defer></script>
-  <script src="./js/dashboard.js?v=20261127b" defer></script>
+  <script src="./js/dashboard.js?v=20261127c" defer></script>
   <script src="./js/duckdb_client.js?v=20261127" defer></script>
   <script src="./js/chat.js?v=20261127b" defer></script>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <h1>BioRxiv &amp; MedRxiv Preprint Analytics</h1>
-      <p id="header-subtitle">Loading dataset metadata...</p>
-    </div>
-    <div class="controls">
-      <div class="category-filter" role="group" aria-label="Subject category filter">
-        <label for="category-select">Subject:</label>
-        <select id="category-select" aria-label="Subject category">
-          <option value="all">All Categories</option>
-        </select>
+    <div class="topbar-inner">
+      <div class="brand">
+        <h1>BioRxiv &amp; MedRxiv<br />Preprint Analytics</h1>
       </div>
-      <div class="year-filter" role="group" aria-label="Year range filter">
-        <label for="year-start">Years:</label>
-        <select id="year-start" aria-label="Start year"></select>
-        <span class="year-sep">&ndash;</span>
-        <select id="year-end" aria-label="End year"></select>
-        <div class="year-presets">
-          <button type="button" class="preset-btn active" data-preset="all">All</button>
-          <button type="button" class="preset-btn" data-preset="mature" title="First posted ≤ 2024 (avoids right-censoring)">&le;2024</button>
-          <button type="button" class="preset-btn" data-preset="last5">Last 5Y</button>
-          <button type="button" class="preset-btn" data-preset="covid">2020–21</button>
+      <div class="controls">
+        <div class="category-filter" role="group" aria-label="Subject category filter">
+          <label for="category-select">Subject:</label>
+          <select id="category-select" aria-label="Subject category">
+            <option value="all">All Categories</option>
+          </select>
         </div>
+        <div class="year-filter" role="group" aria-label="Year range filter">
+          <label for="year-start">Years:</label>
+          <select id="year-start" aria-label="Start year"></select>
+          <span class="year-sep">&ndash;</span>
+          <select id="year-end" aria-label="End year"></select>
+          <div class="year-presets">
+            <button type="button" class="preset-btn active" data-preset="all">All</button>
+            <button type="button" class="preset-btn" data-preset="mature" title="First posted ≤ 2024 (avoids right-censoring)">&le;2024</button>
+            <button type="button" class="preset-btn" data-preset="last5">Last 5Y</button>
+            <button type="button" class="preset-btn" data-preset="covid">2020–21</button>
+          </div>
+        </div>
+        <div class="segmented" role="group" aria-label="Server filter">
+          <button class="active" data-server="all">All Preprints</button>
+          <button data-server="biorxiv">bioRxiv</button>
+          <button data-server="medrxiv">medRxiv</button>
+        </div>
+        <button id="open-chat-btn" class="icon-btn btn-chat" type="button" title="Open quick Ask AI drawer alongside this view">Ask AI</button>
+        <button id="theme-toggle" class="icon-btn" title="Toggle dark/light mode">Dark Mode</button>
       </div>
-      <div class="segmented" role="group" aria-label="Server filter">
-        <button class="active" data-server="all">All Preprints</button>
-        <button data-server="biorxiv">bioRxiv</button>
-        <button data-server="medrxiv">medRxiv</button>
-      </div>
-      <button id="open-chat-btn" class="icon-btn btn-chat" type="button" title="Open quick Ask AI drawer alongside this view">Ask AI</button>
-      <button id="theme-toggle" class="icon-btn" title="Toggle dark/light mode">Dark Mode</button>
     </div>
   </header>
 
-  <nav class="nav-tabs" role="tablist">
-    <button class="tab-btn active" data-tab="overview">Overview &amp; Growth</button>
-    <button class="tab-btn" data-tab="peer-review">Peer Review &amp; Journals</button>
-    <button class="tab-btn" data-tab="frontiers">Research Frontiers (NLP)</button>
-    <button class="tab-btn" data-tab="open-science">Open Science &amp; Teams</button>
-    <button class="tab-btn" data-tab="institutions">Institutions &amp; Audit</button>
-    <button class="tab-btn" data-tab="clinical-trials">Clinical Trials</button>
-    <button class="tab-btn tab-btn-ai" data-tab="ask-ai">&#10022; Ask AI</button>
-  </nav>
-
-  <main class="container">
+  <div class="global-kpi-bar">
     <div id="load-error" class="callout callout-warn" style="display:none;"></div>
     <section class="kpi-grid" id="kpi-grid"></section>
+  </div>
+
+  <div class="nav-tabs-wrap">
+    <nav class="nav-tabs" role="tablist">
+      <button class="tab-btn active" data-tab="overview" role="tab" aria-selected="true">Overview &amp; Growth</button>
+      <button class="tab-btn" data-tab="peer-review" role="tab" aria-selected="false">Peer Review &amp; Journals</button>
+      <button class="tab-btn" data-tab="frontiers" role="tab" aria-selected="false">Research Frontiers (NLP)</button>
+      <button class="tab-btn" data-tab="open-science" role="tab" aria-selected="false">Open Science &amp; Teams</button>
+      <button class="tab-btn" data-tab="institutions" role="tab" aria-selected="false">Institutions &amp; Audit</button>
+      <button class="tab-btn" data-tab="clinical-trials" role="tab" aria-selected="false">Clinical Trials</button>
+      <button class="tab-btn tab-btn-ai" data-tab="ask-ai" role="tab" aria-selected="false">&#10022; Ask AI</button>
+    </nav>
+  </div>
+
+  <main class="container">
 
     <!-- TAB 1: OVERVIEW -->
     <section class="tab-panel active" id="tab-overview">

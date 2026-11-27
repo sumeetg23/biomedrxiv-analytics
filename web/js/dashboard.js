@@ -1660,13 +1660,7 @@ function setYearRange(newStart, newEnd) {
 
 function renderActiveTab() {
   const agg = aggregateWindow();
-  const kpiGrid = document.getElementById("kpi-grid");
-  if (kpiGrid) {
-    kpiGrid.style.display = currentTab === "ask-ai" ? "none" : "";
-  }
-  if (currentTab !== "ask-ai") {
-    renderKPIs(agg);
-  }
+  renderKPIs(agg);
   if (currentTab === "overview") renderOverview(agg);
   else if (currentTab === "peer-review") renderPeerReview(agg);
   else if (currentTab === "frontiers") renderFrontiers(agg);
@@ -1680,9 +1674,13 @@ window.switchDashboardTab = function (tabName) {
   const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
   const targetPanel = document.getElementById(`tab-${tabName}`);
   if (!targetBtn || !targetPanel) return;
-  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach((b) => {
+    b.classList.remove("active");
+    b.setAttribute("aria-selected", "false");
+  });
   document.querySelectorAll(".tab-panel").forEach((panel) => panel.classList.remove("active"));
   targetBtn.classList.add("active");
+  targetBtn.setAttribute("aria-selected", "true");
   currentTab = tabName;
   targetPanel.classList.add("active");
   renderActiveTab();
@@ -1870,8 +1868,11 @@ async function init() {
 
   const p = DATA.dataset_provenance || {};
   const kAll = DATA.kpis.all;
-  document.getElementById("header-subtitle").textContent =
-    `${fmtInt(kAll.unique_dois)} unique preprints (${kAll.date_min} to ${kAll.date_max}) • Snapshot ${p.version_id || "local"}`;
+  const hdrSub = document.getElementById("header-subtitle");
+  if (hdrSub) {
+    hdrSub.textContent =
+      `${fmtInt(kAll.unique_dois)} unique preprints (${kAll.date_min} to ${kAll.date_max}) • Snapshot ${p.version_id || "local"}`;
+  }
   document.getElementById("footer-provenance").textContent =
     `Dataset: ${p.dataset_handle || "m0delcrafter/bio-and-med-dataset"} • Snapshot: ${p.version_id || "local"} • Built: ${DATA.generated_at_utc.slice(0, 19).replace("T", " ")} UTC`;
 
